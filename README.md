@@ -1,79 +1,94 @@
-# RepairFlow Frontend
+# RepairFlow Staff Portal
 
-Customer-facing frontend for the NIBM Agile coursework RepairFlow project.
+Separate Next.js frontend for RepairFlow **Owner/Staff** and **Technician** users.
 
-## Implemented now
+## What is implemented
 
-- Customer registration with frontend validation
-- Registration OTP verification and resend cooldown
-- Customer login with email/password
-- Login OTP verification and resend cooldown
-- Forgot password initiation
-- Forgot password OTP verification + resend
-- New-password screen using the backend reset token
-- HttpOnly access/refresh cookie integration
-- Automatic access-token refresh for protected API requests
-- Protected customer dashboard
-- Secure logout
-- Responsive blue/white RepairFlow UI and vector brand mark
-- Same-origin Next.js API proxy to avoid browser CORS/cookie problems during local development
+- Shared Owner/Staff + Technician sign-in screen. The backend detects the account role from the submitted email.
+- Login OTP verification and resend OTP for both roles.
+- Forgot-password OTP, resend OTP, verification, and new-password flow for both roles.
+- Technician email verification is completed inside the Owner/Staff Add Technician flow, with OTP and resend OTP.
+- HttpOnly-cookie session handling with automatic access-token refresh.
+- Protected dashboard routes and role-aware navigation.
+- Owner/Staff technician management: create technician, list verified technicians, and enable/disable toggle.
+- Owner/Staff and Technician profile pages.
+- Logout for both roles.
+- Technician users never see the technician-management navigation or add-technician UI.
 
-The repair-job/current-estimate data area is intentionally a backend-ready placeholder because those API contracts are owned by other coursework modules and should not be guessed.
+## Route choice
 
-## Tech stack
+The shared internal login route is:
 
-- Next.js 16 App Router
-- React 19 + TypeScript
-- Tailwind CSS 4
-- Lucide icons
-- Express/MongoDB backend through `/api` proxy
+```text
+/staff/login
+```
 
-## Run locally
+Related auth routes:
 
-1. Start the RepairFlow backend on `http://localhost:5000`.
-2. Confirm the frontend `.env` contains:
+```text
+/staff/login/verify-otp
+/staff/forgot-password
+/staff/forgot-password/verify-otp
+/staff/forgot-password/reset
+```
+
+Protected routes:
+
+```text
+/dashboard
+/technicians   # owner_staff only
+/profile
+```
+
+## Environment
+
+A local `.env.local` is included in the delivered ZIP for local testing:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=/api
 BACKEND_API_BASE_URL=http://localhost:5000/api
 ```
 
-3. Install and run:
+`.env.local` is ignored by Git. Commit `.env.example`, not `.env.local`.
+
+## Run
+
+Start the backend first on port 5000, then:
 
 ```bash
 npm install
 npm run dev
 ```
 
-4. Open `http://localhost:3000`.
+The Staff Portal runs at:
 
-Because the browser calls the Next.js `/api` proxy instead of the Express server directly, the frontend works with the backend HttpOnly cookies without exposing JWTs to JavaScript. This also means local browser CORS configuration is not required for normal frontend use.
+```text
+http://localhost:3001
+```
 
-## Main routes
+Open:
 
-- `/login`
-- `/login/verify-otp`
-- `/register`
-- `/register/verify-otp`
-- `/forgot-password`
-- `/forgot-password/verify-otp`
-- `/forgot-password/reset`
-- `/dashboard`
+```text
+http://localhost:3001/staff/login
+```
 
-## Backend endpoints used
+## Owner/Staff setup
 
-- `POST /api/auth/register`
-- `POST /api/auth/register/verify-otp`
-- `POST /api/auth/register/resend-otp`
-- `POST /api/auth/login`
-- `POST /api/auth/login/verify-otp`
-- `POST /api/auth/login/resend-otp`
-- `POST /api/auth/forgot-password/initiate`
-- `POST /api/auth/forgot-password/resend-otp`
-- `POST /api/auth/forgot-password/verify-otp`
-- `POST /api/auth/forgot-password/change`
-- `POST /api/auth/refresh-token`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
+The initial `owner_staff` account is intentionally **not created from this frontend**. It remains the protected one-time Postman/system setup flow in the backend. After the account is verified, it can sign in through `/staff/login`.
 
-See `docs/BACKEND_INTEGRATION.md` for the full flow.
+## Technician creation and verification
+
+1. Owner/Staff opens **Technicians**.
+2. Click **Add technician** and enter full name, email, contact number, and initial password.
+3. Backend creates a pending technician and emails the verification OTP.
+4. The Owner/Staff Add Technician modal switches to OTP verification. Enter the OTP sent to the technician email.
+5. After verification, the technician becomes active and can sign in from `/staff/login`.
+
+Only verified technicians are returned by the backend technician-list endpoint, so a newly created pending technician appears in the list only after OTP verification.
+
+## Security notes
+
+- JWT access/refresh tokens remain in HttpOnly cookies; the frontend does not place them in localStorage.
+- The frontend does not store a role hint for authentication. The authenticated user role comes from the backend profile/session response.
+- Direct technician access to `/technicians` is blocked in the UI and the backend still enforces Owner/Staff-only RBAC.
+- Disabling a technician invalidates their backend sessions; the next protected request returns them to login.
