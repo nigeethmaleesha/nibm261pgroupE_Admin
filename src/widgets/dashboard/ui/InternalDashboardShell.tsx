@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  ClipboardPlus,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -29,6 +30,7 @@ export function InternalDashboardShell({ children }: { children: React.ReactNode
   const isOwner = user.role === "owner_staff";
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true },
+    { href: "/repair-jobs/new", label: "Register Repair Job", icon: ClipboardPlus, show: isOwner },
     { href: "/technicians", label: "Technicians", icon: UsersRound, show: isOwner },
     { href: "/profile", label: "Profile", icon: UserRound, show: true },
   ].filter((item) => item.show);
