@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  ReceiptText,
   UserRound,
   UsersRound,
   Wrench,
@@ -31,6 +32,7 @@ export function InternalDashboardShell({ children }: { children: React.ReactNode
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true },
     { href: "/repair-jobs/new", label: "Register Repair Job", icon: ClipboardPlus, show: isOwner },
+    { href: "/repair-jobs/estimate", label: "Create Estimate", icon: ReceiptText, show: isOwner },
     { href: "/technicians", label: "Technicians", icon: UsersRound, show: isOwner },
     { href: "/profile", label: "Profile", icon: UserRound, show: true },
   ].filter((item) => item.show);
