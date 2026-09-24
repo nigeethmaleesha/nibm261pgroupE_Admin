@@ -12,6 +12,7 @@ import {
   Menu,
   Power,
   ReceiptText,
+  Search,
   UserRound,
   UsersRound,
   Wrench,
@@ -136,6 +137,7 @@ function OwnerSidebar({
 }: SidebarProps) {
   const ownerNavItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/repair-jobs", label: "Repair Jobs", icon: Search },
     { href: "/repair-jobs/new", label: "Register Repair Job", icon: ClipboardPlus },
     { href: "/repair-jobs/estimate", label: "Create Estimate", icon: ReceiptText },
     { href: "/technicians", label: "Technicians", icon: UsersRound },
@@ -168,7 +170,9 @@ function OwnerSidebar({
             const Icon = item.icon;
             const active =
               pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
+              (item.href !== "/dashboard" &&
+                item.href !== "/repair-jobs" &&
+                pathname.startsWith(`${item.href}/`));
             return (
               <Link
                 key={item.href}
