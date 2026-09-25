@@ -5,12 +5,17 @@ import {
   AlertOctagon,
   Calendar,
   CheckCircle2,
+  Clock,
   Cpu,
+  FileText,
   Hash,
   Laptop,
+  Lock,
   Mail,
+  MessageSquare,
   Phone,
   RefreshCw,
+  Send,
   ShieldAlert,
   Smartphone,
   Tablet,
@@ -18,9 +23,14 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import { fetchAssignedTechnicianJobDetail } from "@/src/shared/api/technicianJobs.api";
+import {
+  fetchAssignedTechnicianJobDetail,
+  fetchTechnicianJobProgressHistory,
+  updateTechnicianJobProgress,
+} from "@/src/shared/api/technicianJobs.api";
 import { ApiError } from "@/src/shared/api/http";
 import type { RepairJob } from "@/src/shared/types/repairJobs";
+import { useToast } from "@/src/shared/ui/ToastProvider";
 
 interface TechnicianJobDetailModalProps {
   jobIdentifier: string | null;
@@ -91,11 +101,23 @@ export function TechnicianJobDetailModal({
   initialJobSummary,
   onClose,
 }: TechnicianJobDetailModalProps) {
+  const toast = useToast();
   const [job, setJob] = useState<RepairJob | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [forbiddenError, setForbiddenError] = useState<string | null>(null);
   const [genericError, setGenericError] = useState<string | null>(null);
   const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  // Bench Progress & Fault Note state
+  const [progressHistory, setProgressHistory] = useState<{
+    isLocked: boolean;
+    allowedStatuses: string[];
+    updates: any[];
+  } | null>(null);
+  const [targetStatus, setTargetStatus] = useState<string>("");
+  const [progressNote, setProgressNote] = useState("");
+  const [isSavingProgress, setIsSavingProgress] = useState(false);
+  const [progressError, setProgressError] = useState("");
 
   useEffect(() => {
     if (!jobIdentifier) return;
@@ -103,9 +125,16 @@ export function TechnicianJobDetailModal({
 
     const run = async () => {
       try {
-        const response = await fetchAssignedTechnicianJobDetail(jobIdentifier);
+        const [detailRes, histRes] = await Promise.all([
+          fetchAssignedTechnicianJobDetail(jobIdentifier),
+          fetchTechnicianJobProgressHistory(jobIdentifier).catch(() => null),
+        ]);
+
         if (isMounted) {
-          setJob(response.job);
+          setJob(detailRes.job);
+          if (histRes) {
+            setProgressHistory(histRes);
+          }
           setForbiddenError(null);
           setGenericError(null);
         }
@@ -138,12 +167,38 @@ export function TechnicianJobDetailModal({
     };
   }, [jobIdentifier, reloadTrigger]);
 
+  const handleSaveProgress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!jobIdentifier || (!targetStatus && !progressNote.trim())) return;
+
+    setIsSavingProgress(true);
+    setProgressError("");
+
+    try {
+      const res = await updateTechnicianJobProgress(jobIdentifier, {
+        status: targetStatus || undefined,
+        note: progressNote.trim() || undefined,
+      });
+
+      toast.success(res.message || "Progress update recorded successfully.");
+      setProgressNote("");
+      setTargetStatus("");
+      setReloadTrigger((n) => n + 1);
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : "Failed to record progress update.";
+      setProgressError(message);
+      toast.error(message);
+    } finally {
+      setIsSavingProgress(false);
+    }
+  };
+
   if (!jobIdentifier) return null;
 
   const displayRef = job?.reference || initialJobSummary?.reference || jobIdentifier;
   const displayStatus = job?.status || initialJobSummary?.status || "Unknown";
   const badgeStyle = getStatusBadgeStyle(displayStatus);
-
 
   return (
     <div
@@ -178,7 +233,7 @@ export function TechnicianJobDetailModal({
                 </span>
               </div>
               <p className="text-[12px] font-semibold text-slate-500">
-                Technical Detail & Bench Specifications
+                Technical Detail &amp; Bench Specifications
               </p>
             </div>
           </div>
@@ -194,7 +249,7 @@ export function TechnicianJobDetailModal({
         </div>
 
         {/* Body */}
-        <div className="max-h-[calc(85vh-130px)] overflow-y-auto p-6 space-y-6">
+        <div className="max-h-[calc(85vh-130px)] space-y-6 overflow-y-auto p-6">
           {/* Loading state */}
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -206,7 +261,7 @@ export function TechnicianJobDetailModal({
             </div>
           )}
 
-          {/* 403 Forbidden State (Acceptance Criteria 5) */}
+          {/* 403 Forbidden State */}
           {!isLoading && forbiddenError && (
             <div className="rounded-2xl border-2 border-rose-200 bg-rose-50/80 p-6 text-rose-950">
               <div className="flex items-start gap-4">
@@ -224,11 +279,6 @@ export function TechnicianJobDetailModal({
                   </div>
                   <p className="mt-2 text-sm font-semibold leading-relaxed text-rose-800">
                     {forbiddenError}
-                  </p>
-                  <p className="mt-2 text-xs leading-relaxed text-rose-700">
-                    Security Policy: This job card is either assigned to a different technician
-                    bench or remains in unassigned triage. You cannot view technical specifications
-                    or customer details for jobs outside your assigned queue.
                   </p>
                 </div>
               </div>
@@ -269,7 +319,7 @@ export function TechnicianJobDetailModal({
             </div>
           )}
 
-          {/* Successful Job Details (Acceptance Criteria 3) */}
+          {/* Successful Job Details */}
           {!isLoading && !forbiddenError && job && (
             <>
               {/* Device Overview Card */}
@@ -314,6 +364,32 @@ export function TechnicianJobDetailModal({
                 </div>
               </div>
 
+              {/* Work Authorisation Scope Banner for Technician */}
+              {job.workAuthorisation?.approvedVersionNumber ? (
+                <div className="rounded-2xl border border-emerald-300 bg-emerald-50/80 p-5 text-emerald-950 shadow-sm">
+                  <div className="flex items-start gap-3.5">
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
+                    <div className="text-xs leading-relaxed">
+                      <span className="font-black text-emerald-950">
+                        WORK AUTHORISED — Approved Version {job.workAuthorisation.approvedVersionNumber} Scope
+                      </span>
+                      <p className="mt-1 font-semibold text-emerald-900">
+                        Customer has approved Estimate Version {job.workAuthorisation.approvedVersionNumber}. You may proceed with repair work under Version {job.workAuthorisation.approvedVersionNumber} scope.
+                      </p>
+                      {job.workAuthorisation.latestVersionNumber && job.workAuthorisation.latestVersionNumber > job.workAuthorisation.approvedVersionNumber && (
+                        <p className="mt-2 rounded-lg bg-amber-100/90 border border-amber-300 p-2.5 font-bold text-amber-950">
+                          ⚠️ Note: Revision Version {job.workAuthorisation.latestVersionNumber} was REJECTED by customer or is pending. Do NOT perform line items from Version {job.workAuthorisation.latestVersionNumber}. Work is authorized ONLY under approved Version {job.workAuthorisation.approvedVersionNumber}.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-xs font-semibold leading-relaxed text-amber-950">
+                  <p>⚠️ No estimate version has been approved by the customer yet. Repair work is paused.</p>
+                </div>
+              )}
+
               {/* Reported Fault Card */}
               <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-5">
                 <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
@@ -324,7 +400,127 @@ export function TechnicianJobDetailModal({
                 </div>
               </div>
 
-              {/* Customer Snapshot Details (Acceptance Criteria 3) */}
+              {/* Bench Progress & Fault Note Logger Form */}
+              <div className="rounded-2xl border border-blue-200/90 bg-blue-50/40 p-5 shadow-sm">
+                <div className="flex items-center justify-between border-b border-blue-100 pb-3">
+                  <div className="flex items-center gap-2 text-blue-900">
+                    <MessageSquare className="h-4.5 w-4.5 text-blue-600" />
+                    <h4 className="text-xs font-black uppercase tracking-wider">
+                      Bench Progress &amp; Fault Logger
+                    </h4>
+                  </div>
+
+                  {progressHistory?.isLocked && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-black text-amber-800">
+                      <Lock className="h-3 w-3" /> Progress Locked (Awaiting Customer)
+                    </span>
+                  )}
+                </div>
+
+                {progressHistory?.isLocked ? (
+                  <div className="mt-3 rounded-xl bg-white p-4 text-xs font-medium leading-5 text-slate-600 border border-amber-200">
+                    <p className="font-bold text-amber-900">
+                      Estimate version is currently awaiting customer approval.
+                    </p>
+                    <p className="mt-1 text-slate-500">
+                      Progress status and bench notes are locked until the customer authorizes or rejects the latest estimate.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSaveProgress} className="mt-3 space-y-3">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Update Status (Optional)
+                      </label>
+                      <select
+                        value={targetStatus}
+                        onChange={(e) => setTargetStatus(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="">Keep status ({job.status})</option>
+                        {progressHistory?.allowedStatuses?.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                        {!progressHistory?.allowedStatuses?.length && (
+                          <>
+                            <option value="In Repair">In Repair</option>
+                            <option value="Waiting for Parts">Waiting for Parts</option>
+                            <option value="Ready for Collection">Ready for Collection</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Bench Finding / Additional Issue Note
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={progressNote}
+                        onChange={(e) => setProgressNote(e.target.value)}
+                        placeholder="Example: Discovered secondary Power IC component damage during disassembly. Requires power management IC replacement & micro-soldering..."
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+
+                    {progressError && (
+                      <p className="text-xs font-bold text-rose-600">{progressError}</p>
+                    )}
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={isSavingProgress || (!targetStatus && !progressNote.trim())}
+                        className="inline-flex h-9 items-center gap-2 rounded-xl bg-blue-600 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        {isSavingProgress ? "Saving Note..." : "Log Fault / Save Update"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Progress Notes Audit Log */}
+                {progressHistory?.updates && progressHistory.updates.length > 0 && (
+                  <div className="mt-4 border-t border-blue-100 pt-3">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                      Recent Bench Updates ({progressHistory.updates.length})
+                    </p>
+                    <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                      {progressHistory.updates.map((up) => (
+                        <div
+                          key={up.id}
+                          className="rounded-xl border border-slate-200/80 bg-white p-2.5 text-xs"
+                        >
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-bold text-slate-900">
+                              {up.statusChanged
+                                ? `${up.fromStatus} → ${up.toStatus}`
+                                : up.toStatus}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {new Date(up.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                          {up.note && (
+                            <p className="mt-1 text-[11px] font-medium text-slate-600 leading-4">
+                              {up.note}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Customer Snapshot Details */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
                 <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
                   Customer Snapshot Details
