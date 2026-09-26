@@ -25,3 +25,37 @@ export function fetchAssignedTechnicianJobDetail(jobIdentifier: string) {
     method: "GET",
   });
 }
+
+/**
+ * Technician progress update & fault note logger.
+ * Proxied to backend PATCH /api/technician/jobs/:jobIdentifier/progress
+ */
+export function updateTechnicianJobProgress(
+  jobIdentifier: string,
+  payload: { status?: string; note?: string; expectedRevision?: number },
+) {
+  const sanitized = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<{ message: string; job: any; update: any }>(
+    `/technician/jobs/${sanitized}/progress`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+/**
+ * Fetch progress and notes history for assigned technician job.
+ * Proxied to backend GET /api/technician/jobs/:jobIdentifier/progress
+ */
+export function fetchTechnicianJobProgressHistory(jobIdentifier: string) {
+  const sanitized = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<{
+    job: any;
+    isLocked: boolean;
+    allowedStatuses: string[];
+    updates: any[];
+  }>(`/technician/jobs/${sanitized}/progress`, {
+    method: "GET",
+  });
+}

@@ -20,6 +20,15 @@ export type RepairJob = {
   reportedFault: string;
   receivedAt: string;
   status: "Received" | string;
+  workAuthorisation?: {
+    latestVersionNumber: number | null;
+    approvedVersionNumber: number | null;
+    partsHoldActive: boolean;
+    canContinueRepair: boolean;
+    canComplete: boolean;
+    repairBlockedReasons: string[];
+    completionBlockedReasons: string[];
+  };
   createdBy: string;
   createdAt: string;
   updatedAt: string;
