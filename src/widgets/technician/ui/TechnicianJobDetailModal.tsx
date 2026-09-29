@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   AlertOctagon,
   Calendar,
@@ -573,7 +574,14 @@ export function TechnicianJobDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end border-t border-slate-100 bg-slate-50/60 px-6 py-3.5">
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <Link
+            href={`/technicians/jobs/${encodeURIComponent(displayRef)}`}
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            Open Diagnosis Workspace
+          </Link>
           <button
             type="button"
             onClick={onClose}
