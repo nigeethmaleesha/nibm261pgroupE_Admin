@@ -1,10 +1,10 @@
 "use client";
 
-import { Calculator, Plus, Send, Trash2, X } from "lucide-react";
+import { Calculator, Plus, RefreshCw, Send, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { issueInitialEstimate } from "@/src/shared/api/estimates.api";
+import { issueInitialEstimate, issueRevisedEstimate } from "@/src/shared/api/estimates.api";
 import { ApiError } from "@/src/shared/api/http";
-import type { EstimateLineType, IssueEstimateResponse } from "@/src/shared/types/estimates";
+import type { EstimateItem, EstimateLineType, IssueEstimateResponse } from "@/src/shared/types/estimates";
 import { useToast } from "@/src/shared/ui/ToastProvider";
 
 type DraftLine = {
@@ -38,9 +38,34 @@ function lkr(minor: number) {
   return `LKR ${(minor / 100).toFixed(2)}`;
 }
 
-export function EstimateEditor({ jobIdentifier, onIssued }: { jobIdentifier: string; onIssued: (response: IssueEstimateResponse) => void }) {
+export function EstimateEditor({
+  jobIdentifier,
+  onIssued,
+  isRevision = false,
+  baseVersionNumber = 1,
+  initialItems,
+}: {
+  jobIdentifier: string;
+  onIssued: (response: IssueEstimateResponse) => void;
+  isRevision?: boolean;
+  baseVersionNumber?: number;
+  initialItems?: EstimateItem[];
+}) {
   const toast = useToast();
-  const [lines, setLines] = useState<DraftLine[]>([newLine()]);
+  const [lines, setLines] = useState<DraftLine[]>(() => {
+    if (initialItems && initialItems.length > 0) {
+      return initialItems.map((item) => ({
+        clientId: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+        type: item.type,
+        description: item.description,
+        quantity: String(item.quantity),
+        unitPrice: item.unitPrice,
+      }));
+    }
+    return [newLine()];
+  });
+  const [changeReason, setChangeReason] = useState("");
+  const [changeReasonError, setChangeReasonError] = useState("");
   const [errors, setErrors] = useState<Record<string, LineErrors>>({});
   const [generalError, setGeneralError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +88,7 @@ export function EstimateEditor({ jobIdentifier, onIssued }: { jobIdentifier: str
   };
 
   const validate = () => {
+    let isValid = true;
     const next: Record<string, LineErrors> = {};
     lines.forEach((line) => {
       const lineErrors: LineErrors = {};
@@ -74,12 +100,25 @@ export function EstimateEditor({ jobIdentifier, onIssued }: { jobIdentifier: str
       if (Object.keys(lineErrors).length) next[line.clientId] = lineErrors;
     });
     setErrors(next);
-    if (Object.keys(next).length) return false;
+    if (Object.keys(next).length) isValid = false;
+
+    if (isRevision) {
+      if (!changeReason.trim()) {
+        setChangeReasonError("A change reason is required when issuing a revised estimate.");
+        isValid = false;
+      } else if (changeReason.trim().length > 1000) {
+        setChangeReasonError("Change reason must not exceed 1000 characters.");
+        isValid = false;
+      } else {
+        setChangeReasonError("");
+      }
+    }
+
     if (totalMinor <= 0) {
       setGeneralError("Estimate total must exceed LKR 0.00.");
-      return false;
+      isValid = false;
     }
-    return true;
+    return isValid;
   };
 
   const requestIssue = () => {
@@ -92,15 +131,30 @@ export function EstimateEditor({ jobIdentifier, onIssued }: { jobIdentifier: str
     setSubmitting(true);
     setGeneralError("");
     try {
-      const response = await issueInitialEstimate(jobIdentifier, {
-        items: lines.map((line) => ({
-          type: line.type,
-          description: line.description.trim(),
-          quantity: Number(line.quantity),
-          unitPrice: line.unitPrice.trim(),
-        })),
-      });
-      toast.success(response.idempotentReplay ? "Existing estimate version 1 returned safely." : "Estimate version 1 issued successfully.");
+      let response: IssueEstimateResponse;
+      if (isRevision) {
+        response = await issueRevisedEstimate(jobIdentifier, {
+          items: lines.map((line) => ({
+            type: line.type,
+            description: line.description.trim(),
+            quantity: Number(line.quantity),
+            unitPrice: line.unitPrice.trim(),
+          })),
+          changeReason: changeReason.trim(),
+          baseVersionNumber,
+        });
+        toast.success(response.idempotentReplay ? `Existing estimate version ${response.estimate.versionNumber} returned safely.` : `Revised estimate version ${response.estimate.versionNumber} issued successfully.`);
+      } else {
+        response = await issueInitialEstimate(jobIdentifier, {
+          items: lines.map((line) => ({
+            type: line.type,
+            description: line.description.trim(),
+            quantity: Number(line.quantity),
+            unitPrice: line.unitPrice.trim(),
+          })),
+        });
+        toast.success(response.idempotentReplay ? "Existing estimate version 1 returned safely." : "Estimate version 1 issued successfully.");
+      }
       onIssued(response);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Unable to issue the repair estimate.";
@@ -116,11 +170,44 @@ export function EstimateEditor({ jobIdentifier, onIssued }: { jobIdentifier: str
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_16px_44px_rgba(15,23,42,0.05)] sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><Calculator className="h-5 w-5" /></div>
-            <div><h2 className="text-base font-black text-slate-950">Estimate line items</h2><p className="mt-0.5 text-[12px] font-medium text-slate-500">Parts and labour · LKR</p></div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+              {isRevision ? <RefreshCw className="h-5 w-5" /> : <Calculator className="h-5 w-5" />}
+            </div>
+            <div>
+              <h2 className="text-base font-black text-slate-950">
+                {isRevision ? `Issue Revision (Version ${baseVersionNumber + 1})` : "Estimate line items"}
+              </h2>
+              <p className="mt-0.5 text-[12px] font-medium text-slate-500">Parts and labour · LKR</p>
+            </div>
           </div>
           <button type="button" onClick={() => setLines((current) => [...current, newLine()])} disabled={submitting || lines.length >= 100} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-[12px] font-extrabold text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"><Plus className="h-4 w-4" /> Add line</button>
         </div>
+
+        {isRevision && (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+            <label className="block">
+              <span className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-amber-900">
+                Change reason <span className="text-rose-600">*</span>
+              </span>
+              <p className="mt-0.5 text-[11px] font-medium text-amber-800">
+                Explain why work or cost changed (e.g. technician reported additional faulty components on bench).
+              </p>
+              <textarea
+                value={changeReason}
+                onChange={(e) => {
+                  setChangeReason(e.target.value);
+                  setChangeReasonError("");
+                  setGeneralError("");
+                }}
+                rows={2}
+                maxLength={1000}
+                placeholder="e.g. Technician bench note: liquid damage found on charging connector, additional replacement parts needed."
+                className={`mt-2 w-full rounded-xl border bg-white p-3 text-[12px] font-medium outline-none focus:ring-4 ${changeReasonError ? "border-rose-300 focus:ring-rose-100" : "border-amber-300 focus:border-amber-500 focus:ring-amber-100"}`}
+              />
+              {changeReasonError && <p className="mt-1 text-[11px] font-bold text-rose-600">{changeReasonError}</p>}
+            </label>
+          </div>
+        )}
 
         <div className="mt-5 space-y-4">
           {lines.map((line, index) => {
@@ -145,15 +232,15 @@ export function EstimateEditor({ jobIdentifier, onIssued }: { jobIdentifier: str
 
         <div className="mt-5 flex flex-col gap-4 rounded-2xl bg-slate-950 px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between">
           <div><p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">Estimate total</p><p className="mt-1 text-2xl font-black">{lkr(totalMinor)}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Server recalculates and stores the authoritative total.</p></div>
-          <button type="button" onClick={requestIssue} disabled={submitting} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-[13px] font-extrabold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-600"><Send className="h-4 w-4" /> {submitting ? "Issuing..." : "Issue Estimate"}</button>
+          <button type="button" onClick={requestIssue} disabled={submitting} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-[13px] font-extrabold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-600"><Send className="h-4 w-4" /> {submitting ? "Issuing..." : isRevision ? `Issue Version ${baseVersionNumber + 1}` : "Issue Estimate"}</button>
         </div>
       </section>
 
       {confirming && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-violet-600">Confirm issue</p><h3 className="mt-1 text-xl font-black text-slate-950">Issue version 1?</h3></div><button type="button" onClick={() => setConfirming(false)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
-            <p className="mt-3 text-[13px] font-medium leading-6 text-slate-600">The estimate total is <strong className="text-slate-900">{lkr(totalMinor)}</strong>. After issue, version 1 and its line items are immutable. Later changes require a new version.</p>
+            <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-violet-600">Confirm issue</p><h3 className="mt-1 text-xl font-black text-slate-950">Issue version {isRevision ? baseVersionNumber + 1 : 1}?</h3></div><button type="button" onClick={() => setConfirming(false)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
+            <p className="mt-3 text-[13px] font-medium leading-6 text-slate-600">The estimate total is <strong className="text-slate-900">{lkr(totalMinor)}</strong>. After issue, version {isRevision ? baseVersionNumber + 1 : 1} and its line items are immutable. Later changes require a new version.</p>
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setConfirming(false)} className="h-11 rounded-xl border border-slate-200 px-4 text-[12px] font-extrabold text-slate-600">Cancel</button><button type="button" onClick={() => void issue()} className="h-11 rounded-xl bg-blue-600 px-4 text-[12px] font-extrabold text-white">Confirm & Issue</button></div>
           </div>
         </div>
