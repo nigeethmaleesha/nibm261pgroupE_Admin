@@ -22,6 +22,7 @@ import { ApiError } from "@/src/shared/api/http";
 import type { RepairJob } from "@/src/shared/types/repairJobs";
 import { InternalDashboardShell } from "@/src/widgets/dashboard/ui/InternalDashboardShell";
 import { DiagnosisForm } from "@/src/widgets/technician/ui/DiagnosisForm";
+import { RepairWorkActions } from "@/src/widgets/technician/ui/RepairWorkActions";
 
 function DeviceIconRenderer({ deviceType, className }: { deviceType: string; className?: string }) {
   const lower = deviceType.toLowerCase();
@@ -294,6 +295,12 @@ export function TechnicianJobDetailPage() {
 
             {/* SCRUM-13 Diagnosis Workspace */}
             <DiagnosisForm
+              jobIdentifier={jobIdentifier}
+              onJobChanged={() => setReloadTrigger((value) => value + 1)}
+            />
+
+            {/* Start Repair / Resume Work, gated by job status and parts hold */}
+            <RepairWorkActions
               jobIdentifier={jobIdentifier}
               onJobChanged={() => setReloadTrigger((value) => value + 1)}
             />

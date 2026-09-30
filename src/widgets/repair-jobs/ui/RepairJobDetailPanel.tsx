@@ -129,7 +129,7 @@ export function RepairJobDetailPanel({
         <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">
-              SCRUM-10 · Job Overview
+              Job Overview
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2.5">
               <h2 className="font-mono text-xl font-black tracking-wide text-slate-950">
@@ -206,7 +206,7 @@ export function RepairJobDetailPanel({
         <section className="rounded-2xl border border-blue-100 bg-blue-50/45 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-blue-600">SCRUM-11 · Assignment</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-blue-600">Assignment</p>
               <h3 className="mt-1 text-sm font-black text-slate-950">
                 {technician?.fullName || "No technician assigned"}
               </h3>

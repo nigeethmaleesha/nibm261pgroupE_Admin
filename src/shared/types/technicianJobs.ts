@@ -50,3 +50,73 @@ export type DashboardStatusFilter =
   | "COMPLETED";
 
 export type DashboardPriorityFilter = "ALL" | "HIGH" | "NORMAL" | "LOW";
+
+export type RepairJobPartsHold = {
+  active: boolean;
+  reason: string | null;
+  placedAt: string | null;
+  releasedAt: string | null;
+  releasedBy: string | null;
+};
+
+export type RepairJobWork = {
+  firstStartedAt: string | null;
+  firstStartedBy: string | null;
+  lastAction: "START" | "RESUME" | null;
+  lastStartedAt: string | null;
+  lastStartedBy: string | null;
+  approvedEstimateId: string | null;
+  approvedEstimateVersion: number | null;
+};
+
+// Slim job snapshot returned by the progress/start-repair/parts-hold endpoints
+// (a subset of RepairJob, not the full detail payload).
+export type RepairProgressJobSnapshot = {
+  id: string;
+  reference: string;
+  status: TechnicianJobStatus;
+  revision: number;
+  partsHold: RepairJobPartsHold;
+  repairWork: RepairJobWork;
+};
+
+export type RepairWorkAuthorisation = {
+  latestVersionNumber: number | null;
+  approvedVersionNumber: number | null;
+  approvedEstimateId: string | null;
+  partsHoldActive: boolean;
+  canContinueRepair: boolean;
+  canStartRepair: boolean;
+  canComplete: boolean;
+  repairBlockedReasons: string[];
+  startBlockedReasons: string[];
+  completionBlockedReasons: string[];
+};
+
+export type RepairProgressUpdateRecord = {
+  id: string;
+  fromStatus: string;
+  toStatus: string;
+  statusChanged: boolean;
+  note: string | null;
+  estimateVersionNumber: number | null;
+  updatedBy: string;
+  updatedByRole: string;
+  createdAt: string;
+};
+
+export type TechnicianJobProgressHistoryResponse = {
+  job: RepairProgressJobSnapshot;
+  canStartRepair: boolean;
+  startBlockedReasons: string[];
+  workAuthorisation: RepairWorkAuthorisation;
+  isLocked: boolean;
+  allowedStatuses: string[];
+  updates: RepairProgressUpdateRecord[];
+};
+
+export type RepairProgressMutationResponse = {
+  message: string;
+  job: RepairProgressJobSnapshot;
+  update: RepairProgressUpdateRecord;
+};

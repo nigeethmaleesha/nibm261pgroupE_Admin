@@ -32,6 +32,7 @@ import {
 import { ApiError } from "@/src/shared/api/http";
 import type { RepairJob } from "@/src/shared/types/repairJobs";
 import { useToast } from "@/src/shared/ui/ToastProvider";
+import { RepairWorkActions } from "./RepairWorkActions";
 
 interface TechnicianJobDetailModalProps {
   jobIdentifier: string | null;
@@ -365,8 +366,10 @@ export function TechnicianJobDetailModal({
                 </div>
               </div>
 
-              {/* Work Authorisation Scope Banner for Technician */}
-              {job.workAuthorisation?.approvedVersionNumber ? (
+              {/* Work Authorisation Scope Banner for Technician. Repair work is
+                  authorised only when the latest estimate version is approved;
+                  the backend supplies the exact blocking reasons. */}
+              {job.workAuthorisation?.canContinueRepair ? (
                 <div className="rounded-2xl border border-emerald-300 bg-emerald-50/80 p-5 text-emerald-950 shadow-sm">
                   <div className="flex items-start gap-3.5">
                     <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
@@ -375,21 +378,31 @@ export function TechnicianJobDetailModal({
                         WORK AUTHORISED — Approved Version {job.workAuthorisation.approvedVersionNumber} Scope
                       </span>
                       <p className="mt-1 font-semibold text-emerald-900">
-                        Customer has approved Estimate Version {job.workAuthorisation.approvedVersionNumber}. You may proceed with repair work under Version {job.workAuthorisation.approvedVersionNumber} scope.
+                        The customer has approved the latest estimate (version {job.workAuthorisation.approvedVersionNumber}). Repair work may proceed within this scope.
                       </p>
-                      {job.workAuthorisation.latestVersionNumber && job.workAuthorisation.latestVersionNumber > job.workAuthorisation.approvedVersionNumber && (
-                        <p className="mt-2 rounded-lg bg-amber-100/90 border border-amber-300 p-2.5 font-bold text-amber-950">
-                          ⚠️ Note: Revision Version {job.workAuthorisation.latestVersionNumber} was REJECTED by customer or is pending. Do NOT perform line items from Version {job.workAuthorisation.latestVersionNumber}. Work is authorized ONLY under approved Version {job.workAuthorisation.approvedVersionNumber}.
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-xs font-semibold leading-relaxed text-amber-950">
-                  <p>⚠️ No estimate version has been approved by the customer yet. Repair work is paused.</p>
+                  <p className="font-black">⚠️ Repair work is paused.</p>
+                  {job.workAuthorisation?.repairBlockedReasons?.length ? (
+                    <ul className="mt-1.5 list-inside list-disc space-y-0.5">
+                      {job.workAuthorisation.repairBlockedReasons.map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1">No approved estimate version is available for this job yet.</p>
+                  )}
                 </div>
               )}
+
+              {/* Start Repair / Resume Work, gated by job status and parts hold */}
+              <RepairWorkActions
+                jobIdentifier={jobIdentifier}
+                onJobChanged={() => setReloadTrigger((n) => n + 1)}
+              />
 
               {/* Reported Fault Card */}
               <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-5">
@@ -444,13 +457,6 @@ export function TechnicianJobDetailModal({
                             {st}
                           </option>
                         ))}
-                        {!progressHistory?.allowedStatuses?.length && (
-                          <>
-                            <option value="In Repair">In Repair</option>
-                            <option value="Waiting for Parts">Waiting for Parts</option>
-                            <option value="Ready for Collection">Ready for Collection</option>
-                          </>
-                        )}
                       </select>
                     </div>
 

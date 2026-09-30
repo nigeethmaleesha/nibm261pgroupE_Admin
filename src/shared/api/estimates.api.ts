@@ -7,6 +7,7 @@ import type {
   IssueRevisionPayload,
   ProgressHistoryResponse,
 } from "@/src/shared/types/estimates";
+import type { RepairProgressMutationResponse } from "@/src/shared/types/technicianJobs";
 
 export function getEstimateContext(jobIdentifier: string) {
   return requestJson<EstimateContextResponse>(
@@ -46,6 +47,25 @@ export function getEstimateHistory(jobIdentifier: string) {
   return requestJson<EstimateHistoryResponse>(
     `/staff/jobs/${encodeURIComponent(jobIdentifier.trim())}/estimates`,
     { method: "GET" },
+  );
+}
+
+/**
+ * Resolve an active parts hold from the Owner/Staff side (parts have
+ * arrived). Does not change job status; the assigned technician then
+ * resumes repair work.
+ * Proxied to backend PATCH /api/staff/jobs/:jobIdentifier/parts-hold/resolve
+ */
+export function resolveStaffPartsHold(
+  jobIdentifier: string,
+  payload: { note?: string; expectedRevision?: number } = {},
+) {
+  return requestJson<RepairProgressMutationResponse>(
+    `/staff/jobs/${encodeURIComponent(jobIdentifier.trim())}/parts-hold/resolve`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
   );
 }
 

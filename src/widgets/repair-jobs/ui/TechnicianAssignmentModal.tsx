@@ -102,7 +102,7 @@ export function TechnicianAssignmentModal({
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">
-                SCRUM-11 · Technician Assignment
+                Technician Assignment
               </p>
               <h2 className="mt-1 text-lg font-black text-slate-950">
                 {currentTechnician ? "Reassign technician" : "Assign technician"}

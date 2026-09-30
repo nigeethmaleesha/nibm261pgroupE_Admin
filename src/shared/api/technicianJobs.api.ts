@@ -2,6 +2,8 @@ import { requestJson } from "./http";
 import type {
   TechnicianJobListResponse,
   TechnicianJobDetailResponse,
+  TechnicianJobProgressHistoryResponse,
+  RepairProgressMutationResponse,
 } from "@/src/shared/types/technicianJobs";
 
 /**
@@ -45,17 +47,56 @@ export function updateTechnicianJobProgress(
 }
 
 /**
- * Fetch progress and notes history for assigned technician job.
+ * Fetch progress and notes history for assigned technician job. Also carries
+ * the current parts-hold flags and repair work authorisation used to gate
+ * the Start Repair / Resume Work actions.
  * Proxied to backend GET /api/technician/jobs/:jobIdentifier/progress
  */
 export function fetchTechnicianJobProgressHistory(jobIdentifier: string) {
   const sanitized = encodeURIComponent(jobIdentifier.trim());
-  return requestJson<{
-    job: any;
-    isLocked: boolean;
-    allowedStatuses: string[];
-    updates: any[];
-  }>(`/technician/jobs/${sanitized}/progress`, {
-    method: "GET",
-  });
+  return requestJson<TechnicianJobProgressHistoryResponse>(
+    `/technician/jobs/${sanitized}/progress`,
+    { method: "GET" },
+  );
+}
+
+/**
+ * Start or resume repair work on the assigned technician's job. Only allowed
+ * when the job is Approved (start) or Waiting for Parts with the hold
+ * resolved (resume); the backend rechecks both atomically on save.
+ * `estimateVersionNumber` is the approved version shown on screen; the backend
+ * returns 409 ESTIMATE_SUPERSEDED if a newer version exists.
+ * Proxied to backend POST /api/technician/jobs/:jobIdentifier/start-repair
+ */
+export function startOrResumeTechnicianRepair(
+  jobIdentifier: string,
+  payload: { note?: string; expectedRevision?: number; estimateVersionNumber?: number } = {},
+) {
+  const sanitized = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<RepairProgressMutationResponse>(
+    `/technician/jobs/${sanitized}/start-repair`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+/**
+ * Resolve an active parts hold on the assigned technician's job (parts have
+ * arrived). Does not change job status; the technician then resumes work.
+ * Proxied to backend PATCH /api/technician/jobs/:jobIdentifier/parts-hold/resolve
+ */
+export function resolveTechnicianPartsHold(
+  jobIdentifier: string,
+  payload: { note?: string; expectedRevision?: number } = {},
+) {
+  const sanitized = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<RepairProgressMutationResponse>(
+    `/technician/jobs/${sanitized}/parts-hold/resolve`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
 }

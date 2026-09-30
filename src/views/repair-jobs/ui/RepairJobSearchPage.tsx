@@ -181,7 +181,7 @@ export function RepairJobSearchPage() {
               </div>
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-blue-600">
-                  SCRUM-10 + SCRUM-11
+                  Workshop Operations
                 </p>
                 <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-slate-950 sm:text-3xl">
                   Repair Job Search & Assignment
