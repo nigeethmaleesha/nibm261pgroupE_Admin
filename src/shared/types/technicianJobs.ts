@@ -120,3 +120,46 @@ export type RepairProgressMutationResponse = {
   job: RepairProgressJobSnapshot;
   update: RepairProgressUpdateRecord;
 };
+
+// Technician work log while In Repair: `workNote` is internal only,
+// `publicUpdate` is the customer-safe text. Entries are immutable; a
+// correction is a new entry that points to the original via `correctionOf`.
+export type RepairWorkNoteEntry = {
+  id: string;
+  workNote: string;
+  publicUpdate: string;
+  estimateId: string;
+  estimateVersionNumber: number;
+  jobStatus: string;
+  recordedBy: { id: string; fullName: string | null };
+  recordedByRole: string;
+  recordedAt: string;
+  isCorrection: boolean;
+  correctionOf: string | null;
+  correctionReason: string | null;
+  correctedBy: string | null;
+  isCurrent: boolean;
+};
+
+export type RepairWorkNotesResponse = {
+  job: { id: string; reference: string; status: string; revision: number };
+  approvedVersionNumber: number | null;
+  canRecord: boolean;
+  recordBlockedReasons: string[];
+  entries: RepairWorkNoteEntry[];
+};
+
+export type RecordWorkNotePayload = {
+  workNote: string;
+  publicUpdate: string;
+  estimateVersionNumber?: number;
+  correctionOf?: string;
+  correctionReason?: string;
+};
+
+export type RecordWorkNoteResponse = {
+  created: boolean;
+  idempotentReplay: boolean;
+  message: string;
+  entry: RepairWorkNoteEntry;
+};

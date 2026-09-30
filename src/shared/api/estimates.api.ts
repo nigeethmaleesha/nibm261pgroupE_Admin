@@ -7,7 +7,10 @@ import type {
   IssueRevisionPayload,
   ProgressHistoryResponse,
 } from "@/src/shared/types/estimates";
-import type { RepairProgressMutationResponse } from "@/src/shared/types/technicianJobs";
+import type {
+  RepairProgressMutationResponse,
+  RepairWorkNotesResponse,
+} from "@/src/shared/types/technicianJobs";
 
 export function getEstimateContext(jobIdentifier: string) {
   return requestJson<EstimateContextResponse>(
@@ -46,6 +49,17 @@ export function fetchStaffProgressHistory(jobIdentifier: string) {
 export function getEstimateHistory(jobIdentifier: string) {
   return requestJson<EstimateHistoryResponse>(
     `/staff/jobs/${encodeURIComponent(jobIdentifier.trim())}/estimates`,
+    { method: "GET" },
+  );
+}
+
+/**
+ * Read-only technician work notes (internal + customer-safe text).
+ * Proxied to backend GET /api/staff/jobs/:jobIdentifier/work-notes
+ */
+export function fetchStaffWorkNotes(jobIdentifier: string) {
+  return requestJson<RepairWorkNotesResponse>(
+    `/staff/jobs/${encodeURIComponent(jobIdentifier.trim())}/work-notes`,
     { method: "GET" },
   );
 }

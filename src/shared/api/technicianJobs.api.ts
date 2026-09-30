@@ -4,6 +4,9 @@ import type {
   TechnicianJobDetailResponse,
   TechnicianJobProgressHistoryResponse,
   RepairProgressMutationResponse,
+  RepairWorkNotesResponse,
+  RecordWorkNotePayload,
+  RecordWorkNoteResponse,
 } from "@/src/shared/types/technicianJobs";
 
 /**
@@ -77,6 +80,43 @@ export function startOrResumeTechnicianRepair(
     `/technician/jobs/${sanitized}/start-repair`,
     {
       method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+/**
+ * Work notes (internal) and customer-safe updates for the assigned job, plus
+ * whether a new entry can be recorded right now.
+ * Proxied to backend GET /api/technician/jobs/:jobIdentifier/work-notes
+ */
+export function fetchTechnicianWorkNotes(jobIdentifier: string) {
+  const sanitized = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<RepairWorkNotesResponse>(
+    `/technician/jobs/${sanitized}/work-notes`,
+    { method: "GET" },
+  );
+}
+
+/**
+ * Record a work note + customer-safe update while the job is In Repair. The
+ * same `idempotencyKey` must be reused when retrying the same submit so the
+ * backend replays the saved entry instead of creating a duplicate.
+ * Proxied to backend POST /api/technician/jobs/:jobIdentifier/work-notes
+ */
+export function recordTechnicianWorkNote(
+  jobIdentifier: string,
+  payload: RecordWorkNotePayload,
+  idempotencyKey: string,
+) {
+  const sanitized = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<RecordWorkNoteResponse>(
+    `/technician/jobs/${sanitized}/work-notes`,
+    {
+      method: "POST",
+      headers: {
+        "Idempotency-Key": idempotencyKey,
+      },
       body: JSON.stringify(payload),
     },
   );

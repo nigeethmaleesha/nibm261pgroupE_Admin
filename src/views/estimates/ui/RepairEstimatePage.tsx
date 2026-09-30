@@ -39,6 +39,7 @@ import { useToast } from "@/src/shared/ui/ToastProvider";
 import { InternalDashboardShell } from "@/src/widgets/dashboard/ui/InternalDashboardShell";
 import { EstimateEditor } from "@/src/widgets/estimates/ui/EstimateEditor";
 import { IssuedEstimateCard } from "@/src/widgets/estimates/ui/IssuedEstimateCard";
+import { RepairWorkNotes } from "@/src/widgets/technician/ui/RepairWorkNotes";
 
 // The progress log only carries the author's role (updatedByRole), not a name.
 function progressRoleLabel(role: string) {
@@ -289,6 +290,9 @@ export function RepairEstimatePage() {
                 </p>
               )}
             </section>
+
+            {/* Technician work notes + customer updates (read-only for staff) */}
+            <RepairWorkNotes jobIdentifier={jobIdentifier} mode="staff" />
 
             {/* Current Estimate Card & Revision Editor */}
             {context.currentEstimate ? (

@@ -33,6 +33,7 @@ import { ApiError } from "@/src/shared/api/http";
 import type { RepairJob } from "@/src/shared/types/repairJobs";
 import { useToast } from "@/src/shared/ui/ToastProvider";
 import { RepairWorkActions } from "./RepairWorkActions";
+import { RepairWorkNotes } from "./RepairWorkNotes";
 
 interface TechnicianJobDetailModalProps {
   jobIdentifier: string | null;
@@ -403,6 +404,9 @@ export function TechnicianJobDetailModal({
                 jobIdentifier={jobIdentifier}
                 onJobChanged={() => setReloadTrigger((n) => n + 1)}
               />
+
+              {/* Work note (internal) + customer-safe update while In Repair */}
+              <RepairWorkNotes jobIdentifier={jobIdentifier} refreshKey={reloadTrigger} />
 
               {/* Reported Fault Card */}
               <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-5">
