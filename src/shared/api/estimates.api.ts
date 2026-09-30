@@ -55,11 +55,11 @@ export function getEstimateHistory(jobIdentifier: string) {
 
 /**
  * Read-only technician work notes (internal + customer-safe text).
- * Proxied to backend GET /api/staff/jobs/:jobIdentifier/work-notes
+ * Proxied to backend GET /api/staff/jobs/:jobIdentifier/progress-updates
  */
 export function fetchStaffWorkNotes(jobIdentifier: string) {
   return requestJson<RepairWorkNotesResponse>(
-    `/staff/jobs/${encodeURIComponent(jobIdentifier.trim())}/work-notes`,
+    `/staff/jobs/${encodeURIComponent(jobIdentifier.trim())}/progress-updates`,
     { method: "GET" },
   );
 }

@@ -88,12 +88,12 @@ export function startOrResumeTechnicianRepair(
 /**
  * Work notes (internal) and customer-safe updates for the assigned job, plus
  * whether a new entry can be recorded right now.
- * Proxied to backend GET /api/technician/jobs/:jobIdentifier/work-notes
+ * Proxied to backend GET /api/technician/jobs/:jobIdentifier/progress-updates
  */
 export function fetchTechnicianWorkNotes(jobIdentifier: string) {
   const sanitized = encodeURIComponent(jobIdentifier.trim());
   return requestJson<RepairWorkNotesResponse>(
-    `/technician/jobs/${sanitized}/work-notes`,
+    `/technician/jobs/${sanitized}/progress-updates`,
     { method: "GET" },
   );
 }
@@ -102,7 +102,7 @@ export function fetchTechnicianWorkNotes(jobIdentifier: string) {
  * Record a work note + customer-safe update while the job is In Repair. The
  * same `idempotencyKey` must be reused when retrying the same submit so the
  * backend replays the saved entry instead of creating a duplicate.
- * Proxied to backend POST /api/technician/jobs/:jobIdentifier/work-notes
+ * Proxied to backend POST /api/technician/jobs/:jobIdentifier/progress-updates
  */
 export function recordTechnicianWorkNote(
   jobIdentifier: string,
@@ -111,7 +111,7 @@ export function recordTechnicianWorkNote(
 ) {
   const sanitized = encodeURIComponent(jobIdentifier.trim());
   return requestJson<RecordWorkNoteResponse>(
-    `/technician/jobs/${sanitized}/work-notes`,
+    `/technician/jobs/${sanitized}/progress-updates`,
     {
       method: "POST",
       headers: {

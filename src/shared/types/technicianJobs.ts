@@ -121,13 +121,22 @@ export type RepairProgressMutationResponse = {
   update: RepairProgressUpdateRecord;
 };
 
-// Technician work log while In Repair: `workNote` is internal only,
-// `publicUpdate` is the customer-safe text. Entries are immutable; a
+// One row of the backend job_progress_logs collection.
+export type JobProgressLogRow = {
+  id: string;
+  is_public: boolean;
+  text: string;
+};
+
+// Technician progress entry while In Repair. The backend stores it as two
+// job_progress_logs rows: `workNote` (is_public: false, internal only) and
+// `publicUpdate` (is_public: true, customer-safe). Entries are immutable; a
 // correction is a new entry that points to the original via `correctionOf`.
 export type RepairWorkNoteEntry = {
   id: string;
   workNote: string;
   publicUpdate: string;
+  logs: JobProgressLogRow[];
   estimateId: string;
   estimateVersionNumber: number;
   jobStatus: string;
