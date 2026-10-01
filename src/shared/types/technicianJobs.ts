@@ -53,10 +53,26 @@ export type DashboardPriorityFilter = "ALL" | "HIGH" | "NORMAL" | "LOW";
 
 export type RepairJobPartsHold = {
   active: boolean;
+  requiredPart: string | null;
   reason: string | null;
+  internalNote: string | null;
   placedAt: string | null;
+  placedBy: string | null;
   releasedAt: string | null;
   releasedBy: string | null;
+  resolutionNote: string | null;
+};
+
+export type PlacePartsHoldPayload = {
+  requiredPart: string;
+  publicReason: string;
+  internalNote?: string;
+  expectedRevision?: number;
+};
+
+export type ResolvePartsHoldPayload = {
+  resolutionNote?: string;
+  expectedRevision?: number;
 };
 
 export type RepairJobWork = {

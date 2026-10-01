@@ -4,6 +4,8 @@ import type {
   TechnicianJobDetailResponse,
   TechnicianJobProgressHistoryResponse,
   RepairProgressMutationResponse,
+  PlacePartsHoldPayload,
+  ResolvePartsHoldPayload,
   RepairWorkNotesResponse,
   RecordWorkNotePayload,
   RecordWorkNoteResponse,
@@ -123,19 +125,39 @@ export function recordTechnicianWorkNote(
 }
 
 /**
- * Resolve an active parts hold on the assigned technician's job (parts have
- * arrived). Does not change job status; the technician then resumes work.
- * Proxied to backend PATCH /api/technician/jobs/:jobIdentifier/parts-hold/resolve
+ * Place the assigned technician's In Repair job on a parts hold. The backend
+ * requires both the required part and a customer-safe delay reason.
+ * Proxied to backend POST /api/technician/jobs/:jobIdentifier/parts-hold
  */
-export function resolveTechnicianPartsHold(
+export function placeTechnicianPartsHold(
   jobIdentifier: string,
-  payload: { note?: string; expectedRevision?: number } = {},
+  payload: PlacePartsHoldPayload,
 ) {
   const sanitized = encodeURIComponent(jobIdentifier.trim());
   return requestJson<RepairProgressMutationResponse>(
-    `/technician/jobs/${sanitized}/parts-hold/resolve`,
+    `/technician/jobs/${sanitized}/parts-hold`,
     {
-      method: "PATCH",
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+/**
+ * Resolve an active parts hold on the assigned technician's job (parts have
+ * arrived). The job status is deliberately left unchanged; Waiting for Parts
+ * requires an explicit Resume Work action, while Awaiting Approval stays locked.
+ * Proxied to backend POST /api/technician/jobs/:jobIdentifier/resolve-parts-hold
+ */
+export function resolveTechnicianPartsHold(
+  jobIdentifier: string,
+  payload: ResolvePartsHoldPayload = {},
+) {
+  const sanitized = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<RepairProgressMutationResponse>(
+    `/technician/jobs/${sanitized}/resolve-parts-hold`,
+    {
+      method: "POST",
       body: JSON.stringify(payload),
     },
   );
