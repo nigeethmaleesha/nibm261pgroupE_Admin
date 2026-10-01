@@ -9,6 +9,8 @@ import {
   Clock,
   FileText,
   History,
+  PackageCheck,
+  PackageX,
   RefreshCw,
   ShieldCheck,
   Wrench,
@@ -21,6 +23,7 @@ import {
   fetchStaffProgressHistory,
   getEstimateContext,
   getEstimateHistory,
+  resolveStaffPartsHold,
 } from "@/src/shared/api/estimates.api";
 import { ApiError } from "@/src/shared/api/http";
 import type {
@@ -29,22 +32,35 @@ import type {
   EstimateHistoryVersionItem,
   ProgressUpdate,
 } from "@/src/shared/types/estimates";
+import type { RepairJobPartsHold } from "@/src/shared/types/technicianJobs";
 import { InlineAlert } from "@/src/shared/ui/InlineAlert";
 import { LoadingScreen } from "@/src/shared/ui/LoadingScreen";
+import { useToast } from "@/src/shared/ui/ToastProvider";
 import { InternalDashboardShell } from "@/src/widgets/dashboard/ui/InternalDashboardShell";
 import { EstimateEditor } from "@/src/widgets/estimates/ui/EstimateEditor";
 import { IssuedEstimateCard } from "@/src/widgets/estimates/ui/IssuedEstimateCard";
+import { RepairWorkNotes } from "@/src/widgets/technician/ui/RepairWorkNotes";
+
+// The progress log only carries the author's role (updatedByRole), not a name.
+function progressRoleLabel(role: string) {
+  if (role === "owner_staff") return "Owner/Staff";
+  if (role === "technician") return "Technician";
+  return role || "Unknown";
+}
 
 export function RepairEstimatePage() {
   const params = useParams<{ jobIdentifier: string }>();
   const jobIdentifier = decodeURIComponent(params.jobIdentifier || "");
+  const toast = useToast();
   const [context, setContext] = useState<EstimateContextResponse | null>(null);
   const [history, setHistory] = useState<EstimateHistoryResponse | null>(null);
   const [progressUpdates, setProgressUpdates] = useState<ProgressUpdate[]>([]);
+  const [partsHold, setPartsHold] = useState<RepairJobPartsHold | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showRevisionEditor, setShowRevisionEditor] = useState(false);
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
+  const [isResolvingHold, setIsResolvingHold] = useState(false);
 
   const load = useCallback(async () => {
     if (!jobIdentifier) return;
@@ -65,6 +81,7 @@ export function RepairEstimatePage() {
 
       if (progressRes.status === "fulfilled") {
         setProgressUpdates(progressRes.value.updates || []);
+        setPartsHold(progressRes.value.job?.partsHold || null);
       }
 
       if (historyRes.status === "fulfilled") {
@@ -78,6 +95,20 @@ export function RepairEstimatePage() {
   }, [jobIdentifier]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const handleResolvePartsHold = async () => {
+    if (!jobIdentifier) return;
+    setIsResolvingHold(true);
+    try {
+      const response = await resolveStaffPartsHold(jobIdentifier);
+      toast.success(response.message || "Parts hold resolved.");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to resolve the parts hold.");
+    } finally {
+      setIsResolvingHold(false);
+    }
+  };
 
   if (loading && !context) return <LoadingScreen label="Loading repair estimate..." />;
 
@@ -104,7 +135,7 @@ export function RepairEstimatePage() {
                 <Calculator className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-violet-600">SCRUM-14 / SCRUM-17 / SCRUM-19 · Repair Estimate &amp; History</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-violet-600">Repair Estimate &amp; History</p>
                 <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-slate-950 sm:text-3xl">{context?.job.reference || "Repair Estimate"}</h1>
                 {context && <p className="mt-2 text-sm font-medium text-slate-500">{context.job.deviceType} · {context.job.makeModel} · {context.job.customer.fullName}</p>}
               </div>
@@ -176,6 +207,39 @@ export function RepairEstimatePage() {
               </section>
             ) : null}
 
+            {/* Parts Hold status &amp; resolve action for Owner/Staff */}
+            {partsHold?.active && (
+              <section className="rounded-2xl border border-rose-300 bg-rose-50/80 p-5 text-rose-950 shadow-sm">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white">
+                      <PackageX className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-black text-rose-950">Parts hold active</h2>
+                      <p className="mt-1 text-[12.5px] font-medium leading-relaxed text-rose-900">
+                        {partsHold.reason || "Waiting for parts."} The assigned technician cannot resume
+                        repair work until this hold is resolved.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleResolvePartsHold()}
+                    disabled={isResolvingHold}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 text-xs font-black text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isResolvingHold ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <PackageCheck className="h-4 w-4" />
+                    )}
+                    {isResolvingHold ? "Resolving..." : "Parts Received / Resolve Hold"}
+                  </button>
+                </div>
+              </section>
+            )}
+
             {/* Technician Bench Notes & Progress Updates Card */}
             <section className="rounded-2xl border border-blue-200 bg-blue-50/40 p-5 shadow-sm">
               <div className="flex items-center gap-2.5">
@@ -195,13 +259,8 @@ export function RepairEstimatePage() {
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
                         <div className="flex items-center gap-2">
                           <span className="font-extrabold text-slate-900">
-                            {update.updatedBy?.name || "Technician"}
+                            {progressRoleLabel(update.updatedByRole)}
                           </span>
-                          {update.updatedBy?.role && (
-                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 uppercase">
-                              {update.updatedBy.role}
-                            </span>
-                          )}
                         </div>
                         <span className="text-[11px] font-semibold text-slate-400">
                           {new Date(update.createdAt).toLocaleString()}
@@ -231,6 +290,9 @@ export function RepairEstimatePage() {
                 </p>
               )}
             </section>
+
+            {/* Technician work notes + customer updates (read-only for staff) */}
+            <RepairWorkNotes jobIdentifier={jobIdentifier} mode="staff" />
 
             {/* Current Estimate Card & Revision Editor */}
             {context.currentEstimate ? (
