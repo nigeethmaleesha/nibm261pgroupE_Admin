@@ -1,3 +1,8 @@
+import type {
+  RepairProgressJobSnapshot,
+  RepairProgressUpdateRecord,
+} from "@/src/shared/types/technicianJobs";
+
 export type EstimateLineType = "PART" | "LABOUR";
 
 export type EstimateItem = {
@@ -19,9 +24,11 @@ export type IssuedEstimate = {
   currency: "LKR";
   totalMinor: number;
   total: string;
+  status?: string;
   issuedBy: string;
   issuedAt: string;
   isImmutable: boolean;
+  changeReason?: string | null;
   items: EstimateItem[];
 };
 
@@ -60,6 +67,17 @@ export type EstimateContextResponse = {
     eligible: boolean;
     reasons: string[];
   };
+  revisionEligibility?: {
+    eligible: boolean;
+    reasons: string[];
+  };
+  hasRevisionDraft?: boolean;
+  workAuthorisation?: {
+    isAuthorised: boolean;
+    status: string;
+    approvedEstimateVersion: number | null;
+    requiresApproval: boolean;
+  };
   currentEstimate: IssuedEstimate | null;
 };
 
@@ -72,6 +90,17 @@ export type IssueEstimatePayload = {
   }>;
 };
 
+export type IssueRevisionPayload = {
+  items: Array<{
+    type: EstimateLineType;
+    description: string;
+    quantity: number;
+    unitPrice: string;
+  }>;
+  changeReason: string;
+  baseVersionNumber?: number;
+};
+
 export type IssueEstimateResponse = {
   created: boolean;
   idempotentReplay: boolean;
@@ -79,3 +108,64 @@ export type IssueEstimateResponse = {
   estimate: IssuedEstimate;
   jobStatus: string;
 };
+
+// Matches the backend progress log entry: updatedBy is a user id and the
+// role is sent separately as updatedByRole.
+export type ProgressUpdate = RepairProgressUpdateRecord;
+
+export type ProgressHistoryResponse = {
+  job: RepairProgressJobSnapshot;
+  isLocked: boolean;
+  allowedStatuses: string[];
+  updates: ProgressUpdate[];
+};
+
+export type EstimateHistoryVersionItem = {
+  id: string;
+  jobId: string;
+  versionNumber: number;
+  currency: "LKR";
+  totalMinor: number;
+  total: string;
+  status: string;
+  changeReason: string | null;
+  basedOnEstimateId: string | null;
+  supersededBy: string | null;
+  supersededAt: string | null;
+  issuedBy: string;
+  issuedAt: string;
+  isImmutable: boolean;
+  isCurrent: boolean;
+  decision: {
+    action: "APPROVED" | "REJECTED";
+    decidedBy: string;
+    decidedAt: string;
+  } | null;
+  items: EstimateItem[];
+};
+
+export type EstimateHistoryResponse = {
+  job: {
+    id: string;
+    reference: string;
+    status: string;
+    revision: number;
+  };
+  currentVersionNumber: number | null;
+  revisionEligibility?: {
+    eligible: boolean;
+    reasons: string[];
+  };
+  workAuthorisation?: {
+    latestVersionNumber: number | null;
+    approvedVersionNumber: number | null;
+    partsHoldActive: boolean;
+    canContinueRepair: boolean;
+    canComplete: boolean;
+    repairBlockedReasons: string[];
+    completionBlockedReasons: string[];
+  };
+  versions: EstimateHistoryVersionItem[];
+};
+
+

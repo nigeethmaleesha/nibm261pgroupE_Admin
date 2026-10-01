@@ -43,7 +43,7 @@ export function EstimateLookupPage() {
               <Calculator className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-violet-600">SCRUM-14 · Estimates</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-violet-600">Estimates</p>
               <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-slate-950 sm:text-3xl">Create Repair Estimate</h1>
               <p className="mt-2 text-sm font-medium leading-6 text-slate-500">Open a repair job by reference or database ID, then issue its first itemised estimate after diagnosis is complete.</p>
             </div>
