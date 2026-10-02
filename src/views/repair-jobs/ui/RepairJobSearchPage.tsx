@@ -33,6 +33,8 @@ const FILTERS = [
   "In Repair",
   "Waiting for Parts",
   "Ready for Collection",
+  "Ready for Return",
+  "Estimate Rejected",
   "Collected",
 ] as const;
 

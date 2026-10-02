@@ -85,6 +85,25 @@ export type RepairJobWork = {
   approvedEstimateVersion: number | null;
 };
 
+export type RepairJobCompletionDetails = {
+  completedAt: string | null;
+  completedBy: string | null;
+  faultResolved: boolean;
+  functionalTestPassed: boolean;
+  functionalTestNotes: string | null;
+  customerSummary: string | null;
+  internalNotes: string | null;
+};
+
+export type CompleteRepairPayload = {
+  expectedRevision?: number;
+  faultResolved: boolean;
+  functionalTestPassed: boolean;
+  functionalTestNotes: string;
+  customerSummary: string;
+  internalNotes?: string;
+};
+
 // Slim job snapshot returned by the progress/start-repair/parts-hold endpoints
 // (a subset of RepairJob, not the full detail payload).
 export type RepairProgressJobSnapshot = {
@@ -92,8 +111,12 @@ export type RepairProgressJobSnapshot = {
   reference: string;
   status: TechnicianJobStatus;
   revision: number;
+  deviceType?: string | null;
+  makeModel?: string | null;
+  reportedFault?: string | null;
   partsHold: RepairJobPartsHold;
   repairWork: RepairJobWork;
+  completionDetails?: RepairJobCompletionDetails;
 };
 
 export type RepairWorkAuthorisation = {

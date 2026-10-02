@@ -10,6 +10,7 @@ import {
   Play,
   RefreshCw,
   RotateCw,
+  ShieldCheck,
   Wrench,
 } from "lucide-react";
 import {
@@ -17,14 +18,19 @@ import {
   placeTechnicianPartsHold,
   resolveTechnicianPartsHold,
   startOrResumeTechnicianRepair,
+  completeTechnicianRepair,
 } from "@/src/shared/api/technicianJobs.api";
 import { ApiError } from "@/src/shared/api/http";
-import type { TechnicianJobProgressHistoryResponse } from "@/src/shared/types/technicianJobs";
+import type {
+  TechnicianJobProgressHistoryResponse,
+  CompleteRepairPayload,
+} from "@/src/shared/types/technicianJobs";
 import { useToast } from "@/src/shared/ui/ToastProvider";
 import {
   PlacePartsHoldModal,
   ResolvePartsDelayModal,
 } from "./PartsDelayModals";
+import { QualityControlModal } from "./QualityControlModal";
 
 type RepairWorkActionsProps = {
   jobIdentifier: string;
@@ -54,8 +60,10 @@ export function RepairWorkActions({ jobIdentifier, onJobChanged }: RepairWorkAct
   const [isStarting, setIsStarting] = useState(false);
   const [isPlacingHold, setIsPlacingHold] = useState(false);
   const [isResolvingHold, setIsResolvingHold] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [showPlaceHoldModal, setShowPlaceHoldModal] = useState(false);
   const [showResolveHoldModal, setShowResolveHoldModal] = useState(false);
+  const [showQcModal, setShowQcModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -159,6 +167,28 @@ export function RepairWorkActions({ jobIdentifier, onJobChanged }: RepairWorkAct
     }
   };
 
+  const handleCompleteRepair = async (payload: CompleteRepairPayload) => {
+    setIsCompleting(true);
+    setModalError(null);
+    try {
+      const response = await completeTechnicianRepair(jobIdentifier, {
+        ...payload,
+        expectedRevision: context?.job.revision,
+      });
+      toast.success(response.message || "Repair completed and marked Ready for Collection!");
+      setShowQcModal(false);
+      await load();
+      onJobChanged?.();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "Failed to complete repair.";
+      await reloadAfterConflict(err);
+      setModalError(message);
+      toast.error(message);
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
   if (isLoading && !context) {
     return (
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -186,7 +216,12 @@ export function RepairWorkActions({ jobIdentifier, onJobChanged }: RepairWorkAct
 
   // This widget is relevant while work is active, start/resume is applicable,
   // or an active hold needs resolving (including while Awaiting Approval).
-  if (!canShowStartAction && status !== "In Repair" && !partsHoldActive) {
+  if (
+    !canShowStartAction &&
+    status !== "In Repair" &&
+    status !== "Ready for Collection" &&
+    !partsHoldActive
+  ) {
     return null;
   }
 
@@ -219,7 +254,7 @@ export function RepairWorkActions({ jobIdentifier, onJobChanged }: RepairWorkAct
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3 text-xs font-semibold leading-5 text-blue-900">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                   <div>
                     <p className="font-black">Repair is in progress</p>
                     <p className="mt-0.5 text-blue-800">
@@ -231,17 +266,50 @@ export function RepairWorkActions({ jobIdentifier, onJobChanged }: RepairWorkAct
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalError(null);
-                    setShowPlaceHoldModal(true);
-                  }}
-                  className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 text-xs font-black text-white shadow-sm transition hover:bg-rose-700"
-                >
-                  <PauseCircle className="h-4 w-4" />
-                  Place on Parts Hold
-                </button>
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalError(null);
+                      setShowQcModal(true);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    Complete Repair & QC
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalError(null);
+                      setShowPlaceHoldModal(true);
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-xs font-black text-white shadow-sm transition hover:bg-rose-700"
+                  >
+                    <PauseCircle className="h-4 w-4" />
+                    Place on Parts Hold
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {status === "Ready for Collection" && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="flex items-start gap-3 text-xs font-semibold leading-5 text-emerald-900">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                <div>
+                  <p className="font-black text-emerald-950">Repair Completed & Quality Tested</p>
+                  <p className="mt-0.5 text-emerald-800">
+                    Device has passed quality control checks and is ready for customer collection.
+                  </p>
+                  {job.completionDetails?.customerSummary && (
+                    <div className="mt-2 rounded-xl border border-emerald-200/80 bg-white/70 p-3 text-xs text-emerald-900">
+                      <span className="font-bold text-emerald-950">Customer Summary:</span>{" "}
+                      {job.completionDetails.customerSummary}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -360,6 +428,23 @@ export function RepairWorkActions({ jobIdentifier, onJobChanged }: RepairWorkAct
             }
           }}
           onSubmit={handleResolvePartsHold}
+        />
+      )}
+
+      {showQcModal && (
+        <QualityControlModal
+          jobReference={job.reference}
+          reportedFault={job.reportedFault || undefined}
+          makeModel={job.makeModel || undefined}
+          isSubmitting={isCompleting}
+          error={modalError}
+          onClose={() => {
+            if (!isCompleting) {
+              setModalError(null);
+              setShowQcModal(false);
+            }
+          }}
+          onSubmit={handleCompleteRepair}
         />
       )}
     </>

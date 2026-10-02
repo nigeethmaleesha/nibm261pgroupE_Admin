@@ -11,12 +11,14 @@ import {
   Mail,
   Phone,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
   UserRoundCheck,
   Wrench,
 } from "lucide-react";
 import type { RepairJob } from "@/src/shared/types/repairJobs";
 import { TechnicianAssignmentModal } from "./TechnicianAssignmentModal";
+import { ReadyForReturnModal } from "./ReadyForReturnModal";
 
 function formatDate(value?: string | null) {
   if (!value) return "Not recorded";
@@ -43,7 +45,9 @@ function formatLkr(minor?: number) {
 function statusClasses(status: string) {
   const normalized = status.toLowerCase();
   if (normalized === "collected") return "border-slate-200 bg-slate-100 text-slate-600";
+  if (normalized === "ready for return") return "border-amber-300 bg-amber-50 text-amber-800";
   if (normalized.includes("ready")) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (normalized.includes("rejected")) return "border-rose-200 bg-rose-50 text-rose-700";
   if (normalized.includes("waiting") || normalized.includes("awaiting")) {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
@@ -72,6 +76,7 @@ export function RepairJobDetailPanel({
   onAssigned,
 }: RepairJobDetailPanelProps) {
   const [assignmentOpen, setAssignmentOpen] = useState(false);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
 
   if (loading) {
     return (
@@ -121,6 +126,7 @@ export function RepairJobDetailPanel({
   }
 
   const collected = job.status === "Collected";
+  const isClosed = collected || job.status === "Ready for Collection" || job.status === "Ready for Return";
   const technician = job.assignment?.technician || job.assignedTechnician || null;
 
   return (
@@ -144,15 +150,28 @@ export function RepairJobDetailPanel({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setAssignmentOpen(true)}
-            disabled={collected}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-[12px] font-extrabold text-white shadow-[0_8px_20px_rgba(37,99,235,0.18)] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
-          >
-            <UserRoundCheck className="h-4 w-4" />
-            {technician ? "Reassign technician" : "Assign technician"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {!isClosed && (
+              <button
+                type="button"
+                onClick={() => setReturnModalOpen(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-[12px] font-extrabold text-amber-900 shadow-sm transition hover:bg-amber-100 hover:border-amber-400"
+              >
+                <RotateCcw className="h-4 w-4 text-amber-700" />
+                Mark Ready for Return
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setAssignmentOpen(true)}
+              disabled={collected}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-[12px] font-extrabold text-white shadow-[0_8px_20px_rgba(37,99,235,0.18)] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+            >
+              <UserRoundCheck className="h-4 w-4" />
+              {technician ? "Reassign technician" : "Assign technician"}
+            </button>
+          </div>
         </div>
 
         {successMessage && (
@@ -167,6 +186,63 @@ export function RepairJobDetailPanel({
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
             This job is Collected. Technician assignment changes are locked by the backend workflow rule.
           </div>
+        )}
+
+        {job.status === "Ready for Return" && (
+          <section className="rounded-2xl border border-amber-300 bg-amber-50/85 p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-amber-700" />
+              <h3 className="text-[13px] font-black uppercase tracking-[0.08em] text-amber-950">
+                Device Ready for Pickup (Unrepaired)
+              </h3>
+            </div>
+            <p className="mt-1 text-xs font-semibold text-amber-900">
+              The device has been prepared for customer return unrepaired. Customer notification email has been dispatched.
+            </p>
+            {job.returnDetails?.reason && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-white/95 p-3.5 text-xs shadow-xs">
+                <p className="font-bold text-amber-950">
+                  Return Reason: <span className="font-semibold text-amber-900">{job.returnDetails.reason}</span>
+                </p>
+                {job.returnDetails.notes && (
+                  <p className="mt-1 text-slate-700">
+                    <strong>Notes:</strong> {job.returnDetails.notes}
+                  </p>
+                )}
+                {job.returnDetails.returnedAt && (
+                  <p className="mt-2 text-[11px] font-medium text-slate-400">
+                    Prepared at: {formatDate(job.returnDetails.returnedAt)}
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {job.status === "Ready for Collection" && job.completionDetails?.customerSummary && (
+          <section className="rounded-2xl border border-emerald-300 bg-emerald-50/85 p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+              <h3 className="text-[13px] font-black uppercase tracking-[0.08em] text-emerald-950">
+                Repair Completed & QC Verified
+              </h3>
+            </div>
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-white/95 p-3.5 text-xs shadow-xs">
+              <p className="font-bold text-emerald-950">
+                Technician Summary: <span className="font-semibold text-emerald-900">{job.completionDetails.customerSummary}</span>
+              </p>
+              {job.completionDetails.functionalTestNotes && (
+                <p className="mt-1 text-slate-700">
+                  <strong>Functional Test Notes:</strong> {job.completionDetails.functionalTestNotes}
+                </p>
+              )}
+              {job.completionDetails.completedAt && (
+                <p className="mt-2 text-[11px] font-medium text-slate-400">
+                  Completed at: {formatDate(job.completionDetails.completedAt)}
+                </p>
+              )}
+            </div>
+          </section>
         )}
 
         <div className="grid gap-4 xl:grid-cols-2">
@@ -255,6 +331,13 @@ export function RepairJobDetailPanel({
         currentTechnician={technician}
         onClose={() => setAssignmentOpen(false)}
         onAssigned={onAssigned}
+      />
+
+      <ReadyForReturnModal
+        open={returnModalOpen}
+        job={job}
+        onClose={() => setReturnModalOpen(false)}
+        onSuccess={onAssigned}
       />
     </>
   );

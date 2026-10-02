@@ -9,6 +9,7 @@ import type {
   RepairWorkNotesResponse,
   RecordWorkNotePayload,
   RecordWorkNoteResponse,
+  CompleteRepairPayload,
 } from "@/src/shared/types/technicianJobs";
 
 /**
@@ -156,6 +157,25 @@ export function resolveTechnicianPartsHold(
   const sanitized = encodeURIComponent(jobIdentifier.trim());
   return requestJson<RepairProgressMutationResponse>(
     `/technician/jobs/${sanitized}/resolve-parts-hold`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+/**
+ * SCRUM-25 / SCRUM-111 / SCRUM-112:
+ * Complete repair with Quality Control Checklist verification.
+ * Proxied to backend POST /api/technician/jobs/:jobIdentifier/complete
+ */
+export function completeTechnicianRepair(
+  jobIdentifier: string,
+  payload: CompleteRepairPayload,
+) {
+  const sanitized = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<RepairProgressMutationResponse>(
+    `/technician/jobs/${sanitized}/complete`,
     {
       method: "POST",
       body: JSON.stringify(payload),
