@@ -96,6 +96,23 @@ export type RepairJob = {
     reason?: string | null;
     notes?: string | null;
   } | null;
+  collectionDetails?: {
+    collectedAt?: string | null;
+    collectedBy?:
+      | string
+      | {
+          id: string;
+          fullName: string;
+          email: string;
+          contactNumber?: string | null;
+          role?: string;
+        }
+      | null;
+    customerIdentityConfirmed?: boolean;
+    deviceHandedOver?: boolean;
+    outcome?: "repaired" | "unrepaired" | "Repaired" | "Unrepaired" | string | null;
+    notes?: string | null;
+  } | null;
   revision?: number;
   createdAt: string;
   updatedAt: string;
@@ -144,4 +161,20 @@ export type CreateRepairJobResponse = {
   message: string;
   idempotentReplay: boolean;
   job: RepairJob;
+};
+
+// SCRUM-120: Staff Handover Types
+export type HandoverDevicePayload = {
+  customerIdentityConfirmed: boolean;
+  deviceHandedOver: boolean;
+  notes?: string;
+  expectedRevision?: number;
+};
+
+export type HandoverDeviceResponse = {
+  success: boolean;
+  message: string;
+  job: RepairJob;
+  update?: any;
+  alreadyCollected?: boolean;
 };

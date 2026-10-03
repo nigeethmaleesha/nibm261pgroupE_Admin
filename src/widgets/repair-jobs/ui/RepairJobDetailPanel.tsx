@@ -8,7 +8,9 @@ import {
   CircleDollarSign,
   CircleUserRound,
   Cpu,
+  Lock,
   Mail,
+  PackageCheck,
   Phone,
   RefreshCw,
   RotateCcw,
@@ -19,6 +21,7 @@ import {
 import type { RepairJob } from "@/src/shared/types/repairJobs";
 import { TechnicianAssignmentModal } from "./TechnicianAssignmentModal";
 import { ReadyForReturnModal } from "./ReadyForReturnModal";
+import { HandoverConfirmationModal } from "./HandoverConfirmationModal";
 
 function formatDate(value?: string | null) {
   if (!value) return "Not recorded";
@@ -77,6 +80,7 @@ export function RepairJobDetailPanel({
 }: RepairJobDetailPanelProps) {
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [handoverModalOpen, setHandoverModalOpen] = useState(false);
 
   if (loading) {
     return (
@@ -126,7 +130,10 @@ export function RepairJobDetailPanel({
   }
 
   const collected = job.status === "Collected";
-  const isClosed = collected || job.status === "Ready for Collection" || job.status === "Ready for Return";
+  const readyForCollection = job.status === "Ready for Collection";
+  const readyForReturn = job.status === "Ready for Return";
+  const isReadyForHandover = readyForCollection || readyForReturn;
+  const isClosed = collected || isReadyForHandover;
   const technician = job.assignment?.technician || job.assignedTechnician || null;
 
   return (
@@ -151,6 +158,17 @@ export function RepairJobDetailPanel({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {isReadyForHandover && (
+              <button
+                type="button"
+                onClick={() => setHandoverModalOpen(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-[12px] font-extrabold text-white shadow-[0_8px_20px_rgba(16,185,129,0.22)] transition hover:bg-emerald-700"
+              >
+                <PackageCheck className="h-4 w-4" />
+                Handover to Customer
+              </button>
+            )}
+
             {!isClosed && (
               <button
                 type="button"
@@ -162,15 +180,21 @@ export function RepairJobDetailPanel({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => setAssignmentOpen(true)}
-              disabled={collected}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-[12px] font-extrabold text-white shadow-[0_8px_20px_rgba(37,99,235,0.18)] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
-            >
-              <UserRoundCheck className="h-4 w-4" />
-              {technician ? "Reassign technician" : "Assign technician"}
-            </button>
+            {collected ? (
+              <div className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 text-[12px] font-extrabold text-slate-600 shadow-xs">
+                <Lock className="h-4 w-4 text-slate-500" />
+                Collected (Read-Only)
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAssignmentOpen(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-[12px] font-extrabold text-white shadow-[0_8px_20px_rgba(37,99,235,0.18)] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+              >
+                <UserRoundCheck className="h-4 w-4" />
+                {technician ? "Reassign technician" : "Assign technician"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -182,10 +206,97 @@ export function RepairJobDetailPanel({
         )}
 
         {collected && (
-          <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-semibold leading-5 text-amber-800">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-            This job is Collected. Technician assignment changes are locked by the backend workflow rule.
-          </div>
+          <section className="rounded-2xl border border-slate-200 bg-slate-50/90 p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-2xl text-white shadow-xs ${
+                    job.collectionDetails?.outcome?.toLowerCase() === "repaired" ||
+                    (!job.collectionDetails?.outcome && job.completionDetails?.faultResolved)
+                      ? "bg-emerald-600 shadow-[0_6px_16px_rgba(16,185,129,0.22)]"
+                      : "bg-amber-600 shadow-[0_6px_16px_rgba(217,119,6,0.22)]"
+                  }`}
+                >
+                  <PackageCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-[13px] font-black uppercase tracking-[0.08em] text-slate-950">
+                    Device Handed Over & Collected
+                  </h3>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                    Customer collection verified. Job is sealed and read-only.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wider ${
+                    job.collectionDetails?.outcome?.toLowerCase() === "repaired" ||
+                    (!job.collectionDetails?.outcome && job.completionDetails?.faultResolved)
+                      ? "border-emerald-300 bg-emerald-100 text-emerald-800"
+                      : "border-amber-300 bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  Outcome:{" "}
+                  {job.collectionDetails?.outcome?.toLowerCase() === "repaired" ||
+                  (!job.collectionDetails?.outcome && job.completionDetails?.faultResolved)
+                    ? "Repaired"
+                    : "Unrepaired"}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-black text-slate-600 shadow-xs">
+                  <Lock className="h-3 w-3 text-slate-500" /> Read-Only Lock
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="font-semibold text-slate-400">Handover Date & Time</p>
+                <p className="mt-1 font-extrabold text-slate-900">
+                  {formatDate(job.collectionDetails?.collectedAt || job.updatedAt)}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="font-semibold text-slate-400">Handed Over By</p>
+                <p className="mt-1 font-extrabold text-slate-900">
+                  {typeof job.collectionDetails?.collectedBy === "object" &&
+                  job.collectionDetails?.collectedBy?.fullName
+                    ? job.collectionDetails.collectedBy.fullName
+                    : typeof job.collectionDetails?.collectedBy === "string"
+                      ? `Staff Member (${job.collectionDetails.collectedBy.slice(-6)})`
+                      : "Owner / Staff Member"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 sm:col-span-2">
+                <div className="flex flex-wrap items-center gap-4 text-emerald-950">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    Customer Identity Verified
+                  </div>
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    Physical Device Handed Over
+                  </div>
+                </div>
+                {job.collectionDetails?.notes && (
+                  <div className="mt-2.5 border-t border-emerald-200/80 pt-2 text-[12px] font-medium text-slate-800">
+                    <span className="font-bold text-emerald-950">Handover Notes:</span>{" "}
+                    {job.collectionDetails.notes}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[11px] font-semibold text-slate-500">
+              <ShieldCheck className="h-4 w-4 text-slate-400 shrink-0" />
+              <span>
+                This repair job is Collected and immutable. All actions and transitions are permanently locked.
+              </span>
+            </div>
+          </section>
         )}
 
         {job.status === "Ready for Return" && (
@@ -337,6 +448,13 @@ export function RepairJobDetailPanel({
         open={returnModalOpen}
         job={job}
         onClose={() => setReturnModalOpen(false)}
+        onSuccess={onAssigned}
+      />
+
+      <HandoverConfirmationModal
+        open={handoverModalOpen}
+        job={job}
+        onClose={() => setHandoverModalOpen(false)}
         onSuccess={onAssigned}
       />
     </>
