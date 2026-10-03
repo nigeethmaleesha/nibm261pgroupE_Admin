@@ -4,6 +4,7 @@ import type {
   CreateRepairJobPayload,
   CreateRepairJobResponse,
   CustomerLookupResponse,
+  RepairJob,
   RepairJobDetailResponse,
   RepairJobSearchResponse,
 } from "@/src/shared/types/repairJobs";
@@ -64,6 +65,34 @@ export function assignRepairJob(jobIdentifier: string, technicianId: string) {
     {
       method: "PATCH",
       body: JSON.stringify({ technicianId }),
+    },
+  );
+}
+
+// SCRUM-26 / SCRUM-116: Owner/Staff marks job Ready for Return unrepaired.
+export interface MarkReadyForReturnPayload {
+  returnReason: string;
+  notes?: string;
+  expectedRevision?: number;
+}
+
+export interface MarkReadyForReturnResponse {
+  success: boolean;
+  message: string;
+  job: RepairJob;
+  update?: any;
+}
+
+export function markJobReadyForReturn(
+  jobIdentifier: string,
+  payload: MarkReadyForReturnPayload,
+) {
+  const identifier = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<MarkReadyForReturnResponse>(
+    `/staff/jobs/${identifier}/ready-for-return`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
     },
   );
 }

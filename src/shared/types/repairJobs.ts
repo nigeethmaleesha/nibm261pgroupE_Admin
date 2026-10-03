@@ -72,6 +72,30 @@ export type RepairJob = {
   assignedAt?: string | null;
   assignment?: RepairJobAssignment;
   currentEstimate?: RepairEstimateSummary | null;
+  partsHold?: {
+    active: boolean;
+    requiredPart?: string | null;
+    reason?: string | null;
+    internalNote?: string | null;
+    placedAt?: string | null;
+    releasedAt?: string | null;
+    resolutionNote?: string | null;
+  } | null;
+  completionDetails?: {
+    completedAt?: string | null;
+    completedBy?: string | null;
+    faultResolved?: boolean;
+    functionalTestPassed?: boolean;
+    functionalTestNotes?: string | null;
+    customerSummary?: string | null;
+    internalNotes?: string | null;
+  } | null;
+  returnDetails?: {
+    returnedAt?: string | null;
+    returnedBy?: string | null;
+    reason?: string | null;
+    notes?: string | null;
+  } | null;
   revision?: number;
   createdAt: string;
   updatedAt: string;
