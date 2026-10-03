@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  Archive,
   Boxes,
   ChevronRight,
   ClipboardPlus,
@@ -138,6 +139,7 @@ function OwnerSidebar({
   const ownerNavItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/repair-jobs", label: "Repair Jobs", icon: Search },
+    { href: "/repair-jobs/archived", label: "Closed Jobs Archive", icon: Archive },
     { href: "/repair-jobs/new", label: "Register Repair Job", icon: ClipboardPlus },
     { href: "/repair-jobs/estimate", label: "Create Estimate", icon: ReceiptText },
     { href: "/technicians", label: "Technicians", icon: UsersRound },
