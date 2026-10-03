@@ -6,6 +6,7 @@ import type { RepairJobSearchItem } from "@/src/shared/types/repairJobs";
 function statusClasses(status: string) {
   const normalized = status.toLowerCase();
   if (normalized === "collected") return "border-slate-200 bg-slate-100 text-slate-600";
+  if (normalized === "ready for return") return "border-amber-300 bg-amber-50 text-amber-800";
   if (normalized.includes("ready")) return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (normalized.includes("waiting") || normalized.includes("awaiting")) {
     return "border-amber-200 bg-amber-50 text-amber-700";

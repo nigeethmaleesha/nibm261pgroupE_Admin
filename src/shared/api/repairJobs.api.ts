@@ -4,6 +4,8 @@ import type {
   CreateRepairJobPayload,
   CreateRepairJobResponse,
   CustomerLookupResponse,
+  HandoverDevicePayload,
+  HandoverDeviceResponse,
   RepairJob,
   RepairJobDetailResponse,
   RepairJobSearchResponse,
@@ -90,6 +92,21 @@ export function markJobReadyForReturn(
   const identifier = encodeURIComponent(jobIdentifier.trim());
   return requestJson<MarkReadyForReturnResponse>(
     `/staff/jobs/${identifier}/ready-for-return`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+// SCRUM-120: Owner/Staff records customer device handover setting status to Collected.
+export function recordDeviceHandover(
+  jobIdentifier: string,
+  payload: HandoverDevicePayload,
+) {
+  const identifier = encodeURIComponent(jobIdentifier.trim());
+  return requestJson<HandoverDeviceResponse>(
+    `/staff/jobs/${identifier}/handover`,
     {
       method: "POST",
       body: JSON.stringify(payload),

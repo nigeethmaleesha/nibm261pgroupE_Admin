@@ -149,6 +149,7 @@ export function RepairJobSearchPage() {
         item.id === updatedJob.id
           ? {
               ...item,
+              status: updatedJob.status,
               assignedTechnician:
                 updatedJob.assignment?.technician ||
                 updatedJob.assignedTechnician ||
