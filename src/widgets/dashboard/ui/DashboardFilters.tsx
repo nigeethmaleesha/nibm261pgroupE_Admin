@@ -6,7 +6,7 @@ import {
 } from "@/src/shared/types/dashboard";
 
 type DashboardFiltersProps = {
-  technicians: string[];
+  technicians: { id: string; fullName: string }[];
   filters: ShopWorkDashboardFilters;
   onChange: (filters: ShopWorkDashboardFilters) => void;
   onReset: () => void;
@@ -64,8 +64,8 @@ export function DashboardFilters({
           >
             <option value="ALL">All technicians</option>
             {technicians.map((technician) => (
-              <option key={technician} value={technician}>
-                {technician}
+              <option key={technician.id} value={technician.id}>
+                {technician.fullName}
               </option>
             ))}
           </select>

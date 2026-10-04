@@ -1,17 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import {
   WORKLOAD_STATUSES,
-  type ShopWorkDashboardData,
   type ShopWorkDashboardFilters,
-  type WorkloadCounts,
   type WorkloadStatus,
 } from "@/src/shared/types/dashboard";
+import { getTechnicians } from "@/src/shared/api/technicians.api";
+import {
+  getShopDashboardMetrics,
+  type ShopDashboardMetrics,
+} from "@/src/shared/api/shopDashboard.api";
 import { DashboardFilters } from "./DashboardFilters";
 import { DashboardKpiCards } from "./DashboardKpiCards";
-import { loadShopWorkDashboardDemo } from "./shopWorkDashboardDemo";
 import { WorkloadQueueTable } from "./WorkloadQueueTable";
 
 const INITIAL_FILTERS: ShopWorkDashboardFilters = {
@@ -22,7 +24,8 @@ const INITIAL_FILTERS: ShopWorkDashboardFilters = {
 };
 
 export function ShopWorkDashboard({ fullName }: { fullName: string }) {
-  const [dashboardData, setDashboardData] = useState<ShopWorkDashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<ShopDashboardMetrics | null>(null);
+  const [technicians, setTechnicians] = useState<{ id: string; fullName: string }[]>([]);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +38,23 @@ export function ShopWorkDashboard({ fullName }: { fullName: string }) {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await loadShopWorkDashboardDemo();
-        if (active) setDashboardData(data);
+        const [metrics, technicianResponse] = await Promise.all([
+          getShopDashboardMetrics({
+            technicianId: filters.technician === "ALL" ? undefined : filters.technician,
+            from: filters.dateFrom || undefined,
+            to: filters.dateTo || undefined,
+            status: filters.status === "ALL" ? undefined : filters.status,
+          }),
+          getTechnicians("active"),
+        ]);
+        if (!active) return;
+        setDashboardData(metrics);
+        setTechnicians(
+          technicianResponse.technicians.map(({ id, fullName: technicianName }) => ({
+            id,
+            fullName: technicianName,
+          })),
+        );
       } catch (loadError) {
         if (!active) return;
         setError(
@@ -53,35 +71,7 @@ export function ShopWorkDashboard({ fullName }: { fullName: string }) {
     return () => {
       active = false;
     };
-  }, [reloadKey]);
-
-  const filteredJobs = useMemo(() => {
-    if (!dashboardData) return [];
-
-    return dashboardData.jobs.filter((job) => {
-      if (filters.technician !== "ALL" && job.assignedTechnician !== filters.technician) {
-        return false;
-      }
-      if (filters.status !== "ALL" && job.status !== filters.status) return false;
-
-      const receivedDate = job.receivedAt.slice(0, 10);
-      if (filters.dateFrom && receivedDate < filters.dateFrom) return false;
-      if (filters.dateTo && receivedDate > filters.dateTo) return false;
-      return true;
-    });
-  }, [dashboardData, filters]);
-
-  const counts = useMemo(() => {
-    const result: WorkloadCounts = {
-      "Awaiting Approval": 0,
-      "Waiting for Parts": 0,
-      "Ready for Collection": 0,
-      "Ready for Return": 0,
-    };
-
-    for (const job of filteredJobs) result[job.status] += 1;
-    return result;
-  }, [filteredJobs]);
+  }, [filters, reloadKey]);
 
   const retryLoading = useCallback(() => {
     setReloadKey((current) => current + 1);
@@ -141,21 +131,18 @@ export function ShopWorkDashboard({ fullName }: { fullName: string }) {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-extrabold text-slate-800">Shop workload overview</h2>
-        <span className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.1em] text-blue-700">
-          Demo data
-        </span>
       </div>
 
       <DashboardFilters
-        technicians={dashboardData.technicians}
+        technicians={technicians}
         filters={filters}
         onChange={setFilters}
         onReset={() => setFilters(INITIAL_FILTERS)}
       />
 
-      <DashboardKpiCards counts={counts} />
+      <DashboardKpiCards counts={dashboardData.counts} />
 
-      {filteredJobs.length === 0 && (
+      {WORKLOAD_STATUSES.every((status) => dashboardData.queues[status].length === 0) && (
         <div role="status" className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-6 text-center">
           <p className="text-sm font-bold text-slate-800">No jobs match these filters</p>
           <p className="mt-1 text-xs font-medium text-slate-500">
@@ -169,7 +156,7 @@ export function ShopWorkDashboard({ fullName }: { fullName: string }) {
           <WorkloadQueueTable
             key={status}
             status={status}
-            jobs={filteredJobs.filter((job) => job.status === status)}
+            jobs={dashboardData.queues[status]}
           />
         ))}
       </div>
