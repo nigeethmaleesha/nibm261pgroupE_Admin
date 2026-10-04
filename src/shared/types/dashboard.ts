@@ -18,6 +18,17 @@ export type ShopWorkJob = {
   status: WorkloadStatus;
 };
 
+export type ShopDashboardQueueRow = {
+  id: string;
+  reference: string;
+  customerName: string;
+  deviceType: string;
+  makeModel: string;
+  assignedTechnicianName: string | null;
+  receivedAt: string;
+  status: WorkloadStatus;
+};
+
 export type ShopWorkDashboardData = {
   jobs: ShopWorkJob[];
   technicians: string[];

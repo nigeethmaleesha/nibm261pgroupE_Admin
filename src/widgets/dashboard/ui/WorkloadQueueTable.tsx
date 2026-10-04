@@ -1,5 +1,5 @@
 import { ClipboardList } from "lucide-react";
-import type { ShopWorkJob, WorkloadStatus } from "@/src/shared/types/dashboard";
+import type { ShopDashboardQueueRow, WorkloadStatus } from "@/src/shared/types/dashboard";
 
 const STATUS_STYLE: Record<WorkloadStatus, string> = {
   "Awaiting Approval": "bg-amber-50 text-amber-800 ring-amber-200",
@@ -23,7 +23,7 @@ export function WorkloadQueueTable({
   jobs,
 }: {
   status: WorkloadStatus;
-  jobs: ShopWorkJob[];
+  jobs: ShopDashboardQueueRow[];
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
@@ -63,11 +63,13 @@ export function WorkloadQueueTable({
                     {job.reference}
                   </td>
                   <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-800">
-                    {job.customer}
+                    {job.customerName}
                   </td>
-                  <td className="px-5 py-4 text-sm font-medium text-slate-700">{job.device}</td>
+                  <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                    {[job.deviceType, job.makeModel].filter(Boolean).join(" / ")}
+                  </td>
                   <td className="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-700">
-                    {job.assignedTechnician}
+                    {job.assignedTechnicianName ?? "Unassigned"}
                   </td>
                   <td className="whitespace-nowrap px-5 py-4 text-xs font-semibold text-slate-600">
                     {formatReceivedDate(job.receivedAt)}

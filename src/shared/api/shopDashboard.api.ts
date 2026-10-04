@@ -1,5 +1,8 @@
-import type { RepairJobSearchItem } from "@/src/shared/types/repairJobs";
-import type { ShopWorkJob, WorkloadCounts, WorkloadStatus } from "@/src/shared/types/dashboard";
+import type {
+  ShopDashboardQueueRow,
+  WorkloadCounts,
+  WorkloadStatus,
+} from "@/src/shared/types/dashboard";
 import { requestJson } from "./http";
 
 type ShopDashboardMetricsResponse = {
@@ -10,10 +13,10 @@ type ShopDashboardMetricsResponse = {
     readyForReturn: number;
   };
   queues: {
-    awaitingApproval: RepairJobSearchItem[];
-    waitingForParts: RepairJobSearchItem[];
-    readyForCollection: RepairJobSearchItem[];
-    readyForReturn: RepairJobSearchItem[];
+    awaitingApproval: ShopDashboardQueueRow[];
+    waitingForParts: ShopDashboardQueueRow[];
+    readyForCollection: ShopDashboardQueueRow[];
+    readyForReturn: ShopDashboardQueueRow[];
   };
 };
 
@@ -26,7 +29,7 @@ export type ShopDashboardFilters = {
 
 export type ShopDashboardMetrics = {
   counts: WorkloadCounts;
-  queues: Record<WorkloadStatus, ShopWorkJob[]>;
+  queues: Record<WorkloadStatus, ShopDashboardQueueRow[]>;
 };
 
 export async function getShopDashboardMetrics(filters: ShopDashboardFilters = {}) {
@@ -42,20 +45,6 @@ export async function getShopDashboardMetrics(filters: ShopDashboardFilters = {}
     { method: "GET" },
   );
 
-  const mapQueue = (
-    jobs: RepairJobSearchItem[],
-    status: WorkloadStatus,
-  ): ShopWorkJob[] =>
-    jobs.map((job) => ({
-      id: job.id,
-      reference: job.reference,
-      customer: job.customer.fullName,
-      device: [job.deviceType, job.makeModel].filter(Boolean).join(" / "),
-      assignedTechnician: job.assignedTechnician?.fullName ?? "Unassigned",
-      receivedAt: job.receivedAt,
-      status,
-    }));
-
   return {
     counts: {
       "Awaiting Approval": response.summary.awaitingApproval,
@@ -64,10 +53,10 @@ export async function getShopDashboardMetrics(filters: ShopDashboardFilters = {}
       "Ready for Return": response.summary.readyForReturn,
     },
     queues: {
-      "Awaiting Approval": mapQueue(response.queues.awaitingApproval, "Awaiting Approval"),
-      "Waiting for Parts": mapQueue(response.queues.waitingForParts, "Waiting for Parts"),
-      "Ready for Collection": mapQueue(response.queues.readyForCollection, "Ready for Collection"),
-      "Ready for Return": mapQueue(response.queues.readyForReturn, "Ready for Return"),
+      "Awaiting Approval": response.queues.awaitingApproval,
+      "Waiting for Parts": response.queues.waitingForParts,
+      "Ready for Collection": response.queues.readyForCollection,
+      "Ready for Return": response.queues.readyForReturn,
     },
   } satisfies ShopDashboardMetrics;
 }
