@@ -56,6 +56,11 @@ export function RepairJobSearchPage() {
   const [refreshDetailToken, setRefreshDetailToken] = useState(0);
 
   useEffect(() => {
+    const requestedJob = new URLSearchParams(window.location.search).get("job");
+    if (requestedJob) setSelectedIdentifier(requestedJob);
+  }, []);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedQuery(input.trim());
     }, 350);
