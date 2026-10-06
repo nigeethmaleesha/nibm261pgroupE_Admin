@@ -23,7 +23,7 @@ export function RegisterRepairJobPage() {
                 <ClipboardPlus className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-blue-600">SCRUM-9 · Repair intake</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-blue-600">Repair Intake</p>
                 <h1 className="mt-1 text-2xl font-black tracking-[-0.035em] text-slate-950 sm:text-3xl">Register Repair Job</h1>
                 <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-500">
                   Select an existing customer, record the received device and reported fault, then create a traceable repair job.

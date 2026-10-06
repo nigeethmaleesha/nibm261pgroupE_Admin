@@ -1,3 +1,8 @@
+import type {
+  RepairProgressJobSnapshot,
+  RepairProgressUpdateRecord,
+} from "@/src/shared/types/technicianJobs";
+
 export type EstimateLineType = "PART" | "LABOUR";
 
 export type EstimateItem = {
@@ -104,20 +109,12 @@ export type IssueEstimateResponse = {
   jobStatus: string;
 };
 
-export type ProgressUpdate = {
-  id: string;
-  fromStatus: string;
-  toStatus: string;
-  note: string | null;
-  updatedBy?: {
-    name?: string;
-    role?: string;
-  } | null;
-  createdAt: string;
-};
+// Matches the backend progress log entry: updatedBy is a user id and the
+// role is sent separately as updatedByRole.
+export type ProgressUpdate = RepairProgressUpdateRecord;
 
 export type ProgressHistoryResponse = {
-  job: any;
+  job: RepairProgressJobSnapshot;
   isLocked: boolean;
   allowedStatuses: string[];
   updates: ProgressUpdate[];
