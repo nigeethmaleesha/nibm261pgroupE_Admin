@@ -1,4 +1,5 @@
-import { ClipboardList } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, ClipboardList } from "lucide-react";
 import type { ShopWorkJob, WorkloadStatus } from "@/src/shared/types/dashboard";
 
 const STATUS_STYLE: Record<WorkloadStatus, string> = {
@@ -38,7 +39,7 @@ export function WorkloadQueueTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[850px] text-left">
+        <table className="w-full min-w-[900px] text-left">
           <thead className="bg-slate-50/80">
             <tr className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-slate-500">
               <th className="px-5 py-3">Job reference</th>
@@ -47,12 +48,13 @@ export function WorkloadQueueTable({
               <th className="px-5 py-3">Technician</th>
               <th className="px-5 py-3">Received</th>
               <th className="px-5 py-3">Status</th>
+              <th className="px-5 py-3 text-right">Details</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {jobs.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-sm font-medium text-slate-500">
+                <td colSpan={7} className="px-5 py-8 text-center text-sm font-medium text-slate-500">
                   No jobs in this queue match the selected filters.
                 </td>
               </tr>
@@ -60,14 +62,19 @@ export function WorkloadQueueTable({
               jobs.map((job) => (
                 <tr key={job.id} className="transition hover:bg-slate-50/70">
                   <td className="whitespace-nowrap px-5 py-4 text-xs font-extrabold text-blue-700">
-                    {job.reference}
+                    <Link
+                      href={`/repair-jobs?job=${encodeURIComponent(job.id)}`}
+                      className="hover:underline"
+                    >
+                      {job.reference}
+                    </Link>
                   </td>
                   <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-800">
                     {job.customer}
                   </td>
                   <td className="px-5 py-4 text-sm font-medium text-slate-700">{job.device}</td>
                   <td className="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-700">
-                    {job.assignedTechnician}
+                    {job.assignedTechnician?.fullName || "Unassigned"}
                   </td>
                   <td className="whitespace-nowrap px-5 py-4 text-xs font-semibold text-slate-600">
                     {formatReceivedDate(job.receivedAt)}
@@ -77,6 +84,15 @@ export function WorkloadQueueTable({
                       <ClipboardList className="h-3 w-3" aria-hidden="true" />
                       {job.status}
                     </span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-4 text-right">
+                    <Link
+                      href={`/repair-jobs?job=${encodeURIComponent(job.id)}`}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-extrabold text-blue-700 transition hover:bg-blue-50"
+                    >
+                      Open
+                      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Link>
                   </td>
                 </tr>
               ))

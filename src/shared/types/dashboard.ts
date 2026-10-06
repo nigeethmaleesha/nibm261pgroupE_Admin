@@ -8,26 +8,44 @@ export const WORKLOAD_STATUSES = [
 export type WorkloadStatus = (typeof WORKLOAD_STATUSES)[number];
 export type DashboardStatusFilter = "ALL" | WorkloadStatus;
 
+export type ShopWorkTechnician = {
+  id: string;
+  fullName: string;
+  isActive: boolean;
+};
+
 export type ShopWorkJob = {
   id: string;
   reference: string;
   customer: string;
+  deviceType: string;
+  makeModel: string;
   device: string;
-  assignedTechnician: string;
+  assignedTechnician: Pick<ShopWorkTechnician, "id" | "fullName"> | null;
   receivedAt: string;
   status: WorkloadStatus;
 };
 
+export type WorkloadCounts = Record<WorkloadStatus, number>;
+export type WorkloadQueues = Record<WorkloadStatus, ShopWorkJob[]>;
+
 export type ShopWorkDashboardData = {
-  jobs: ShopWorkJob[];
-  technicians: string[];
+  filters: {
+    technicianId: string | null;
+    dateFrom: string | null;
+    dateTo: string | null;
+    status: WorkloadStatus | null;
+  };
+  counts: WorkloadCounts;
+  queues: WorkloadQueues;
+  technicians: ShopWorkTechnician[];
+  total: number;
+  generatedAt: string;
 };
 
 export type ShopWorkDashboardFilters = {
-  technician: string;
+  technicianId: string;
   dateFrom: string;
   dateTo: string;
   status: DashboardStatusFilter;
 };
-
-export type WorkloadCounts = Record<WorkloadStatus, number>;

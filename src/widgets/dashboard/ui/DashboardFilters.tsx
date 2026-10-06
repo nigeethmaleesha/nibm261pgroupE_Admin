@@ -3,10 +3,11 @@ import {
   WORKLOAD_STATUSES,
   type DashboardStatusFilter,
   type ShopWorkDashboardFilters,
+  type ShopWorkTechnician,
 } from "@/src/shared/types/dashboard";
 
 type DashboardFiltersProps = {
-  technicians: string[];
+  technicians: ShopWorkTechnician[];
   filters: ShopWorkDashboardFilters;
   onChange: (filters: ShopWorkDashboardFilters) => void;
   onReset: () => void;
@@ -41,7 +42,7 @@ export function DashboardFilters({
             Filter workload
           </h2>
           <p className="mt-1 text-xs font-medium text-slate-500">
-            Filters combine to narrow both the counts and queue tables.
+            Filters are applied on the server to both KPI counts and queue rows.
           </p>
         </div>
         <button
@@ -58,14 +59,14 @@ export function DashboardFilters({
         <label className={labelClassName}>
           Technician
           <select
-            value={filters.technician}
-            onChange={(event) => update("technician", event.target.value)}
+            value={filters.technicianId}
+            onChange={(event) => update("technicianId", event.target.value)}
             className={selectClassName}
           >
             <option value="ALL">All technicians</option>
             {technicians.map((technician) => (
-              <option key={technician} value={technician}>
-                {technician}
+              <option key={technician.id} value={technician.id}>
+                {technician.fullName}{technician.isActive ? "" : " (Disabled)"}
               </option>
             ))}
           </select>
@@ -97,6 +98,7 @@ export function DashboardFilters({
             <input
               type="date"
               value={filters.dateTo}
+              min={filters.dateFrom || undefined}
               onChange={(event) => update("dateTo", event.target.value)}
               className={`${selectClassName} mt-0 pl-9`}
             />
@@ -124,7 +126,7 @@ export function DashboardFilters({
       </div>
       {filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo && (
         <p role="status" className="mt-3 text-xs font-semibold text-amber-700">
-          The start date is after the end date, so no jobs fall within the selected range.
+          Date from cannot be after date to. Adjust the range to refresh the dashboard.
         </p>
       )}
     </section>
