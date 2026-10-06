@@ -14,6 +14,8 @@ A Next.js (Turbopack) frontend for RepairFlow **Owner/Staff** and **Technician**
   - [3. Repair Job Intake & Registration (SCRUM-9)](#3-repair-job-intake--registration-scrum-9)
   - [4. Repair Estimates & Pricing (SCRUM-14)](#4-repair-estimates--pricing-scrum-14)
   - [5. Technician Account Management (Owner/Staff Only)](#5-technician-account-management-ownerstaff-only)
+  - [6. Repair Job Search, Assignment & Return Readiness (SCRUM-10, SCRUM-11, SCRUM-26)](#6-repair-job-search-assignment--return-readiness-scrum-10-scrum-11-scrum-26)
+  - [7. Customer Device Handover & Collected Immutability (SCRUM-120)](#7-customer-device-handover--collected-immutability-scrum-120)
 - [Route Directory](#route-directory)
 - [Backend API Integration](#backend-api-integration)
 - [Prerequisites & Environment Configuration](#prerequisites--environment-configuration)
@@ -150,6 +152,36 @@ Available to **Owner/Staff** users:
 
 ---
 
+### 6. Repair Job Search, Assignment & Return Readiness (SCRUM-10, SCRUM-11, SCRUM-26)
+Available to **Owner/Staff** users:
+- **Route**: `/repair-jobs`
+- **Shop-Wide Search**: Live search across references, customer names, and contact numbers (`GET /api/staff/jobs?query=...`).
+- **Status Filter Tabs**: Quick filter by workflow stage (*All, Received, Diagnosing, Awaiting Approval, Approved, In Repair, Waiting for Parts, Ready for Collection, Ready for Return, Collected*).
+- **Technician Assignment Modal (SCRUM-11)**: Assign or reassign open jobs to active, verified technicians (`PATCH /api/jobs/:id/assign`) with optimistic revision tracking.
+- **Ready for Return Modal (SCRUM-26 / SCRUM-116)**: Mark an unrepairable or declined job as `Ready for Return` (`POST /api/staff/jobs/:id/ready-for-return`), triggering customer email notification and releasing any active parts holds.
+
+---
+
+### 7. Customer Device Handover & Collected Immutability (SCRUM-120)
+Available to **Owner/Staff** users:
+- **Route**: `/repair-jobs` (Job detail view & confirmation dialog)
+- **Action Button Visibility**: Prominently renders **"Handover to Customer"** when a job is in `Ready for Collection` (repaired) or `Ready for Return` (unrepaired).
+- **Handover Confirmation Modal**:
+  - **Outcome Context Banner**: Clearly indicates whether the device is completing as **Repaired** (emerald) or returning as **Unrepaired** (amber).
+  - **Customer & Device Summary Card**: Verifies customer contact details and device make/model/serial number.
+  - **Mandatory Staff Verification Checkbox 1**: Confirmation that staff physically checked customer Photo ID, National Identity Card (NIC), or Driving License.
+  - **Mandatory Staff Verification Checkbox 2**: Confirmation that the physical device and all accessories were handed back to the customer.
+  - **Optional Notes**: Staff handover notes (e.g. ID details, invoice receipt, warranty notes; max 500 characters).
+  - **Action Button Lock**: Submit button remains strictly disabled until both verification checks are checked.
+- **Backend API Integration**: Dispatches `POST /api/staff/jobs/:id/handover` with JWT authorization.
+- **Collected State & Read-Only Immutability**:
+  - Updates job status to `Collected` and displays the **"Collected (Read-Only)"** lock badge.
+  - Renders a dedicated **"Device Handed Over & Collected"** audit card detailing the exact handover timestamp, staff attribution (`collectedBy`), verified check indicators, final outcome, and recorded notes.
+  - Permanently locks technician reassignments, return actions, and editing.
+- **Idempotency Protection**: Seamlessly handles repeated or retried handover submissions (`alreadyCollected: true`) by updating state without throwing errors.
+
+---
+
 ## Route Directory
 
 | Route Path | Allowed Roles | Description |
@@ -160,11 +192,12 @@ Available to **Owner/Staff** users:
 | `/staff/forgot-password/verify-otp` | Public | Password reset OTP verification |
 | `/staff/forgot-password/reset` | Public | Set new password with verified reset token |
 | `/dashboard` | `owner_staff`, `technician` | Role-aware dashboard (Technician Queue or Staff Management) |
-| `/technicians/jobs/[jobIdentifier]` | `technician` | Direct route for technician job details with 403 security |
+| `/repair-jobs` | `owner_staff` | Shop-wide repair job search, assignment & handover management |
 | `/repair-jobs/new` | `owner_staff` | Customer lookup & repair job intake registration |
 | `/repair-jobs/estimate` | `owner_staff` | Standalone estimate lookup by job reference |
 | `/repair-jobs/[jobIdentifier]/estimate` | `owner_staff` | Line-item estimate editor and issuance |
 | `/technicians` | `owner_staff` | Create, verify, list, and enable/disable technicians |
+| `/technicians/jobs/[jobIdentifier]` | `technician` | Direct route for technician job details with 403 security |
 | `/profile` | `owner_staff`, `technician` | View user profile details and role metadata |
 
 ---
@@ -183,7 +216,12 @@ The frontend connects to the Express backend through a Next.js reverse proxy (`p
 | `/api/technician/jobs` | `/api/technician/jobs` | GET | **SCRUM-41**: Fetch assigned jobs for technician |
 | `/api/technician/jobs/:id` | `/api/technician/jobs/:id` | GET | **SCRUM-41**: Fetch job details (returns 403 if unauthorized) |
 | `/api/staff/customers` | `/api/staff/customers` | GET | Customer search for intake |
-| `/api/staff/jobs` | `/api/staff/jobs` | POST | Register new repair job |
+| `/api/staff/jobs` | `/api/staff/jobs` | GET | **SCRUM-10**: Search all workshop repair jobs |
+| `/api/staff/jobs` | `/api/staff/jobs` | POST | **SCRUM-9**: Register new repair job |
+| `/api/staff/jobs/:id` | `/api/staff/jobs/:id` | GET | **SCRUM-10**: Full saved intake & repair details |
+| `/api/jobs/:id/assign` | `/api/jobs/:id/assign` | PATCH | **SCRUM-11**: Assign/reassign technician |
+| `/api/staff/jobs/:id/ready-for-return` | `/api/staff/jobs/:id/ready-for-return` | POST | **SCRUM-26**: Mark job ready for return (unrepaired) |
+| `/api/staff/jobs/:id/handover` | `/api/staff/jobs/:id/handover` | POST | **SCRUM-120**: Record customer handover (mark Collected & read-only) |
 | `/api/staff/jobs/:id/estimate-context` | `/api/staff/jobs/:id/estimate-context` | GET | Fetch job context for estimate |
 | `/api/staff/jobs/:id/estimates` | `/api/staff/jobs/:id/estimates` | POST | Issue estimate with line items |
 | `/api/staff/technicians` | `/api/staff/technicians` | GET/POST | List and create technicians |
@@ -287,6 +325,42 @@ Open [http://localhost:3001/staff/login](http://localhost:3001/staff/login) in y
 4. **Estimate Creation (`/repair-jobs/estimate`)**:
    - Enter the job reference to load the estimate editor.
    - Add parts and labour items with unit costs and issue the estimate.
+5. **Job Search & Assignment (`/repair-jobs`)**:
+   - Search by job reference, customer name, or phone number.
+   - Filter jobs by status tabs.
+   - Assign or reassign open jobs to active technicians with optimistic revision tracking.
+
+---
+
+### Scenario C: Testing Customer Device Handover & Collected Immutability (SCRUM-120)
+1. **Search for Ready Jobs (`/repair-jobs`)**:
+   - Log in as Owner/Staff and navigate to `/repair-jobs`.
+   - Filter by `Ready for Collection` (repaired jobs) or `Ready for Return` (unrepaired returns).
+   - Select a job to open its full details panel on the right.
+2. **Open Handover Confirmation Dialog**:
+   - Click the green **"Handover to Customer"** action button in the header.
+   - Note the outcome context banner:
+     - `Ready for Collection` indicates **Outcome: Repaired** (emerald banner).
+     - `Ready for Return` indicates **Outcome: Unrepaired** (amber banner).
+   - Verify the customer name, contact phone number, and hardware make/model.
+3. **Staff Verification Checks**:
+   - Notice that the **"Confirm Handover"** button is disabled by default.
+   - Check **"I have verified the customer's identity"** (verifies Photo ID, NIC, or Driving License).
+   - Check **"I confirm the device has been physically handed over"** (verifies physical handover).
+   - Optionally enter handover notes (e.g. `Customer presented NIC 200012345678. Settled final invoice.`).
+4. **Confirm Handover**:
+   - Click **"Confirm Handover (Repaired / Unrepaired)"**.
+   - The modal dispatches `POST /api/staff/jobs/:id/handover`.
+   - On success, a toast confirmation appears: *"Device successfully handed over to customer."*
+5. **Verify Collected Status & Immutability Locks**:
+   - The job status updates immediately to `Collected`.
+   - The header displays the **"Collected (Read-Only)"** lock badge.
+   - The **"Handover to Customer"** and **"Mark Ready for Return"** action buttons disappear.
+   - The **"Assign technician"** button is disabled with a lock notice.
+   - The detailed **"Device Handed Over & Collected"** record card is rendered showing the exact handover timestamp, acting staff attribution, identity & device verification checkmarks, and notes.
+6. **Verify Idempotency Replay**:
+   - If the handover endpoint is retried or repeated for the same job, the backend returns HTTP 200 with `alreadyCollected: true`.
+   - The frontend handles this gracefully by displaying an informational notification without throwing errors.
 
 ---
 
@@ -300,8 +374,9 @@ nibm261pgroupE_Admin/
 │   │   ├── page.tsx                        # Owner/Staff technician management
 │   │   └── jobs/[jobIdentifier]/page.tsx   # Direct route for technician job details
 │   ├── repair-jobs/
-│   │   ├── new/page.tsx                    # Repair job intake page
-│   │   └── [jobIdentifier]/estimate/page.tsx # Repair estimate editor
+│   │   ├── page.tsx                        # SCRUM-10 / SCRUM-120 Repair job search & handover
+│   │   ├── new/page.tsx                    # SCRUM-9 Repair job intake page
+│   │   └── [jobIdentifier]/estimate/page.tsx # SCRUM-14 Repair estimate editor
 │   ├── profile/page.tsx                    # User profile page
 │   ├── staff/                              # Public authentication routes
 │   │   ├── login/page.tsx
@@ -314,7 +389,7 @@ nibm261pgroupE_Admin/
 │   │   │   ├── http.ts                     # Fetch client with auto refresh & ApiError
 │   │   │   ├── internalAuth.api.ts         # Authentication API calls
 │   │   │   ├── technicianJobs.api.ts       # SCRUM-41 Technician jobs API calls
-│   │   │   ├── repairJobs.api.ts           # SCRUM-9 Job intake API calls
+│   │   │   ├── repairJobs.api.ts           # SCRUM-9, 10, 11, 26, 120 Staff Jobs API
 │   │   │   ├── estimates.api.ts            # SCRUM-14 Estimate API calls
 │   │   │   └── technicians.api.ts          # Technician provisioning API calls
 │   │   ├── auth/                           # Auth context & route protection
@@ -323,12 +398,15 @@ nibm261pgroupE_Admin/
 │   │   └── types/                          # TypeScript definitions
 │   │       ├── internal.ts                 # User & session types
 │   │       ├── technicianJobs.ts           # SCRUM-41 DTOs & filter types
-│   │       ├── repairJobs.ts               # Repair job intake types
+│   │       ├── repairJobs.ts               # Repair job, intake & handover types
 │   │       └── estimates.ts                # Repair estimate types
 │   ├── views/                              # Page-level view compositions
 │   │   ├── dashboard/ui/InternalDashboardPage.tsx
 │   │   ├── technicians/ui/TechnicianJobDetailPage.tsx
-│   │   └── repair-jobs/ui/RegisterRepairJobPage.tsx
+│   │   ├── repair-jobs/ui/
+│   │   │   ├── RegisterRepairJobPage.tsx   # Job intake view
+│   │   │   └── RepairJobSearchPage.tsx     # Job search, list & handover view
+│   │   └── estimates/ui/RepairEstimatePage.tsx
 │   └── widgets/                            # Feature-specific UI components
 │       ├── dashboard/ui/InternalDashboardShell.tsx # Dynamic role-aware sidebar/header
 │       ├── technician/ui/
@@ -336,12 +414,21 @@ nibm261pgroupE_Admin/
 │       │   ├── TechnicianJobDetailModal.tsx # Full specs & 403 Forbidden interceptor
 │       │   └── TechnicianBenchAuxiliaryCards.tsx # Bench instruments, parts, memos
 │       ├── technicians/ui/AddTechnicianModal.tsx
-│       └── repair-jobs/ui/RepairIntakeForm.tsx
+│       └── repair-jobs/ui/
+│           ├── CustomerLookup.tsx          # Real-time customer search
+│           ├── HandoverConfirmationModal.tsx # SCRUM-120 Handover & ID verification modal
+│           ├── ReadyForReturnModal.tsx     # SCRUM-26 Ready for return modal
+│           ├── RepairIntakeForm.tsx        # Intake form with idempotency
+│           ├── RepairJobDetailPanel.tsx    # Full job details, controls & handover card
+│           ├── RepairJobSearchList.tsx     # Search result card list with status badges
+│           └── TechnicianAssignmentModal.tsx # Tech assignment modal with revision check
 ├── docs/                                   # Coursework integration documentation
 │   ├── SCRUM41_TECHNICIAN_DASHBOARD_FRONTEND.md
 │   ├── SCRUM14_ESTIMATE_FRONTEND.md
 │   ├── SCRUM9_FRONTEND_INTEGRATION.md
-│   └── BACKEND_INTEGRATION.md
+│   ├── BACKEND_INTEGRATION.md
+│   ├── GIT_COMMIT_PLAN.md
+│   └── PROJECT_STRUCTURE.md
 ├── proxy.ts                                # Next.js reverse proxy for /api/*
 ├── package.json
 └── tsconfig.json
